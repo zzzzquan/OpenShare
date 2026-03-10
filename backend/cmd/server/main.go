@@ -6,6 +6,7 @@ import (
 
 	"github.com/openshare/backend/internal/config"
 	"github.com/openshare/backend/internal/router"
+	"github.com/openshare/backend/pkg/database"
 	"github.com/openshare/backend/pkg/logger"
 	"github.com/openshare/backend/pkg/storage"
 )
@@ -25,6 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer log.Sync()
+	logger.SetDefault(log) // 设置全局默认日志实例
 
 	// 初始化存储目录
 	if err := storage.InitDirectories(cfg.Storage.BasePath); err != nil {
@@ -33,14 +35,18 @@ func main() {
 	log.Info("Storage directories initialized", "path", cfg.Storage.BasePath)
 
 	// 初始化数据库连接
-	db, err := config.InitDB(cfg)
-	if err != nil {
+	if err := database.Init(&cfg.Database); err != nil {
 		log.Fatal("Failed to connect database", "error", err)
 	}
-	log.Info("Database connected successfully")
+	defer database.Close()
+
+	// 执行数据库迁移
+	if err := database.AutoMigrate(); err != nil {
+		log.Fatal("Failed to migrate database", "error", err)
+	}
 
 	// 初始化路由
-	r := router.Setup(cfg, db, log)
+	r := router.Setup(cfg, database.GetDB(), log)
 
 	// 启动服务
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

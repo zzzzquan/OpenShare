@@ -27,13 +27,17 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBName   string `mapstructure:"dbname"`
-	SSLMode  string `mapstructure:"sslmode"`
-	TimeZone string `mapstructure:"timezone"`
+	Host            string `mapstructure:"host"`
+	Port            int    `mapstructure:"port"`
+	User            string `mapstructure:"user"`
+	Password        string `mapstructure:"password"`
+	DBName          string `mapstructure:"dbname"`
+	SSLMode         string `mapstructure:"sslmode"`
+	TimeZone        string `mapstructure:"timezone"`
+	MaxIdleConns    int    `mapstructure:"max_idle_conns"`
+	MaxOpenConns    int    `mapstructure:"max_open_conns"`
+	ConnMaxLifetime int    `mapstructure:"conn_max_lifetime"` // 秒
+	LogMode         bool   `mapstructure:"log_mode"`
 }
 
 // LogConfig 日志配置
@@ -98,6 +102,10 @@ func setDefaults() {
 	viper.SetDefault("database.dbname", "openshare")
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("database.timezone", "Asia/Shanghai")
+	viper.SetDefault("database.max_idle_conns", 10)
+	viper.SetDefault("database.max_open_conns", 100)
+	viper.SetDefault("database.conn_max_lifetime", 3600)
+	viper.SetDefault("database.log_mode", false)
 
 	// Log defaults
 	viper.SetDefault("log.level", "info")

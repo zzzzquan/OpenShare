@@ -12,6 +12,10 @@ database:
   dbname: openshare
   sslmode: disable
   timezone: Asia/Shanghai
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600  # 秒
+  log_mode: false  # 是否打印 SQL 日志
 
 log:
   level: info    # debug, info, warn, error
