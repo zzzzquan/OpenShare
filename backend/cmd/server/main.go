@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	"github.com/openshare/backend/internal/config"
+	"github.com/openshare/backend/internal/handler"
 	"github.com/openshare/backend/internal/router"
 	"github.com/openshare/backend/internal/service"
 	"github.com/openshare/backend/pkg/database"
+	"github.com/openshare/backend/pkg/jwt"
 	"github.com/openshare/backend/pkg/logger"
 	"github.com/openshare/backend/pkg/storage"
 )
@@ -47,6 +49,9 @@ func main() {
 		log.Fatal("Failed to migrate database", "error", err)
 	}
 
+	// 初始化 JWT 管理器
+	jwtManager := jwt.NewManager(cfg.JWT.Secret, cfg.JWT.ExpireHour)
+
 	// 初始化服务层
 	services := service.New(&service.Options{
 		DB:     database.GetDB(),
@@ -57,8 +62,21 @@ func main() {
 	// 初始化超级管理员
 	initSuperAdmin(services, log)
 
+	// 初始化 handler 层
+	handlers := handler.New(&handler.Options{
+		Services:   services,
+		Config:     cfg,
+		Logger:     log,
+		JWTManager: jwtManager,
+	})
+
 	// 初始化路由
-	r := router.Setup(cfg, database.GetDB(), log)
+	r := router.Setup(&router.Options{
+		Config:     cfg,
+		Logger:     log,
+		Handlers:   handlers,
+		JWTManager: jwtManager,
+	})
 
 	// 启动服务
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

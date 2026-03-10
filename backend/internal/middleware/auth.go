@@ -1,14 +1,17 @@
 package middleware
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/openshare/backend/pkg/jwt"
 	"github.com/openshare/backend/pkg/response"
 )
 
 // Auth JWT 认证中间件
-func Auth(secret string) gin.HandlerFunc {
+// 使用 JWT Manager 进行 token 验证
+func Auth(jwtManager *jwt.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -24,14 +27,31 @@ func Auth(secret string) gin.HandlerFunc {
 			return
 		}
 
-		token := parts[1]
-		if token == "" {
+		tokenString := parts[1]
+		if tokenString == "" {
 			response.Unauthorized(c, "empty token")
 			c.Abort()
 			return
 		}
 
-		// TODO: 验证 JWT token
+		// 验证 JWT token
+		claims, err := jwtManager.ParseToken(tokenString)
+		if err != nil {
+			if errors.Is(err, jwt.ErrExpiredToken) {
+				response.Unauthorized(c, "token has expired")
+			} else {
+				response.Unauthorized(c, "invalid token")
+			}
+			c.Abort()
+			return
+		}
+
+		// 将用户信息存入上下文
+		c.Set("admin_id", claims.AdminID)
+		c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
+		c.Set("token", tokenString)
+
 		c.Next()
 	}
 }

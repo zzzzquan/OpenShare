@@ -5,20 +5,28 @@ import (
 	"github.com/openshare/backend/internal/config"
 	"github.com/openshare/backend/internal/handler"
 	"github.com/openshare/backend/internal/middleware"
+	"github.com/openshare/backend/pkg/jwt"
 	"github.com/openshare/backend/pkg/logger"
-	"gorm.io/gorm"
 )
 
+// Options 路由初始化配置
+type Options struct {
+	Config     *config.Config
+	Logger     *logger.Logger
+	Handlers   *handler.Handlers
+	JWTManager *jwt.Manager
+}
+
 // Setup 初始化路由
-func Setup(cfg *config.Config, db *gorm.DB, log *logger.Logger) *gin.Engine {
+func Setup(opts *Options) *gin.Engine {
 	// 设置运行模式
-	gin.SetMode(cfg.Server.Mode)
+	gin.SetMode(opts.Config.Server.Mode)
 
 	r := gin.New()
 
 	// 全局中间件
-	r.Use(middleware.Recovery(log))
-	r.Use(middleware.Logger(log))
+	r.Use(middleware.Recovery(opts.Logger))
+	r.Use(middleware.Logger(opts.Logger))
 	r.Use(middleware.CORS())
 
 	// 健康检查
@@ -55,13 +63,19 @@ func Setup(cfg *config.Config, db *gorm.DB, log *logger.Logger) *gin.Engine {
 		// 管理端接口
 		admin := v1.Group("/admin")
 		{
-			// 认证
-			admin.POST("/login", handler.NotImplemented)
+			// 认证接口（无需 token）
+			admin.POST("/login", opts.Handlers.Admin.Login)
 
 			// 需要认证的接口
 			auth := admin.Group("")
-			auth.Use(middleware.Auth(cfg.JWT.Secret))
+			auth.Use(middleware.Auth(opts.JWTManager))
 			{
+				// 当前用户
+				auth.GET("/me", opts.Handlers.Admin.GetCurrentAdmin)
+				auth.POST("/password", opts.Handlers.Admin.ChangePassword)
+				auth.POST("/refresh", opts.Handlers.Admin.RefreshToken)
+				auth.POST("/logout", opts.Handlers.Admin.Logout)
+
 				// 审核管理
 				auth.GET("/submissions", handler.NotImplemented)
 				auth.POST("/submissions/:id/approve", handler.NotImplemented)
