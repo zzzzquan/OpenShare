@@ -186,32 +186,32 @@ func (c Config) Validate() error {
 		return errors.New("server.port must be between 1 and 65535")
 	}
 
-	if strings.TrimSpace(c.Database.Path) == "" {
+	if c.Database.Path == "" {
 		return errors.New("database.path must not be empty")
 	}
-	switch strings.ToLower(c.Database.LogLevel) {
+	switch c.Database.LogLevel {
 	case "silent", "error", "warn", "info":
 	default:
 		return errors.New("database.log_level must be one of: silent, error, warn, info")
 	}
 
-	if strings.TrimSpace(c.Storage.Root) == "" {
+	if c.Storage.Root == "" {
 		return errors.New("storage.root must not be empty")
 	}
-	if strings.TrimSpace(c.Storage.Repository) == "" {
+	if c.Storage.Repository == "" {
 		return errors.New("storage.repository must not be empty")
 	}
-	if strings.TrimSpace(c.Storage.Staging) == "" {
+	if c.Storage.Staging == "" {
 		return errors.New("storage.staging must not be empty")
 	}
-	if strings.TrimSpace(c.Storage.Trash) == "" {
+	if c.Storage.Trash == "" {
 		return errors.New("storage.trash must not be empty")
 	}
 
-	if strings.TrimSpace(c.Session.Name) == "" {
+	if c.Session.Name == "" {
 		return errors.New("session.name must not be empty")
 	}
-	if strings.TrimSpace(c.Session.Secret) == "" {
+	if c.Session.Secret == "" {
 		return errors.New("session.secret must not be empty")
 	}
 	if c.Session.Secret == "replace-this-in-local-config" {
@@ -224,7 +224,7 @@ func (c Config) Validate() error {
 		return errors.New("session.renew_window_seconds must be between 0 and session.max_age_seconds")
 	}
 
-	switch strings.ToLower(c.Session.SameSite) {
+	switch c.Session.SameSite {
 	case "lax", "strict", "none":
 	default:
 		return errors.New("session.same_site must be one of: lax, strict, none")
