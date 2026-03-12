@@ -31,6 +31,22 @@ require_command() {
   fi
 }
 
+ensure_port_available() {
+  local port="$1"
+  local label="$2"
+  local occupancy
+
+  occupancy="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
+  if [[ -z "$occupancy" ]]; then
+    return
+  fi
+
+  echo "$label 端口 $port 已被占用，当前无法安全启动测试环境。"
+  echo "请先停止占用该端口的旧进程："
+  echo "$occupancy"
+  exit 1
+}
+
 prepare_frontend_dependencies() {
   if [[ -x "$FRONTEND_DIR/node_modules/.bin/vite" ]]; then
     echo "前端依赖已存在，跳过安装。"
@@ -169,8 +185,12 @@ main() {
   require_command go
   require_command npm
   require_command curl
+  require_command lsof
 
   trap cleanup EXIT INT TERM
+
+  ensure_port_available 8080 "后端"
+  ensure_port_available 5173 "前端"
 
   print_step 1 "重置本地测试数据"
   reset_local_state
