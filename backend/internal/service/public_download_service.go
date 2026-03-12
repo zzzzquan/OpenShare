@@ -53,7 +53,7 @@ func (s *PublicDownloadService) PrepareDownload(ctx context.Context, fileID stri
 		return nil, ErrDownloadFileNotFound
 	}
 
-	opened, err := s.storage.OpenRepositoryFile(file.DiskPath)
+	opened, err := s.storage.OpenManagedFile(file.DiskPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, ErrDownloadFileUnavailable

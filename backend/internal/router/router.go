@@ -25,6 +25,9 @@ func New(db *gorm.DB, cfg config.Config, sessionManager *session.Manager) *gin.E
 	adminRepo := repository.NewAdminRepository(db)
 	adminAuthService := service.NewAdminAuthService(db, adminRepo, sessionManager)
 	adminAuthHandler := handler.NewAdminAuthHandler(adminAuthService, sessionManager)
+	importHandler := handler.NewImportHandler(
+		service.NewImportService(repository.NewImportRepository(db), storageService),
+	)
 	moderationHandler := handler.NewModerationHandler(
 		service.NewModerationService(repository.NewModerationRepository(db), storageService),
 	)
@@ -95,6 +98,20 @@ func New(db *gorm.DB, cfg config.Config, sessionManager *session.Manager) *gin.E
 		"/submissions/:submissionID/reject",
 		middleware.RequireAdminPermission(model.AdminPermissionReviewSubmissions),
 		moderationHandler.RejectSubmission,
+	)
+	adminProtected.POST(
+		"/imports/local",
+		middleware.RequireAdminPermission(model.AdminPermissionManageSystem),
+		importHandler.ImportLocalDirectory,
+	)
+	adminProtected.GET(
+		"/folders/tree",
+		importHandler.GetFolderTree,
+	)
+	adminProtected.PUT(
+		"/folders/:folderID/tags",
+		middleware.RequireAdminPermission(model.AdminPermissionManageTags),
+		importHandler.BindFolderTags,
 	)
 
 	adminPermissionProbe := adminProtected.Group("/_internal")

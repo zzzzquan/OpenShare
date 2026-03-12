@@ -86,13 +86,14 @@ type Admin struct {
 
 // Folder is the hierarchical container for files and subfolders.
 type Folder struct {
-	ID        EntityID       `gorm:"column:id;type:text;primaryKey"`
-	ParentID  *EntityID      `gorm:"column:parent_id;type:text;index:idx_folders_parent_id_status"`
-	Name      string         `gorm:"column:name;type:text;not null"`
-	Status    ResourceStatus `gorm:"column:status;type:text;not null;default:'active';index:idx_folders_parent_id_status;index:idx_folders_status_created_at"`
-	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime;index:idx_folders_status_created_at,sort:desc"`
-	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt *time.Time     `gorm:"column:deleted_at;type:datetime"`
+	ID         EntityID       `gorm:"column:id;type:text;primaryKey"`
+	ParentID   *EntityID      `gorm:"column:parent_id;type:text;index:idx_folders_parent_id_status"`
+	SourcePath *string        `gorm:"column:source_path;type:text;uniqueIndex:ux_folders_source_path"`
+	Name       string         `gorm:"column:name;type:text;not null"`
+	Status     ResourceStatus `gorm:"column:status;type:text;not null;default:'active';index:idx_folders_parent_id_status;index:idx_folders_status_created_at"`
+	CreatedAt  time.Time      `gorm:"column:created_at;autoCreateTime;index:idx_folders_status_created_at,sort:desc"`
+	UpdatedAt  time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt  *time.Time     `gorm:"column:deleted_at;type:datetime"`
 
 	// Relations
 	Parent     *Folder     `gorm:"foreignKey:ParentID"`
@@ -106,6 +107,7 @@ type File struct {
 	ID            EntityID       `gorm:"column:id;type:text;primaryKey"`
 	FolderID      *EntityID      `gorm:"column:folder_id;type:text;index:idx_files_folder_id_status"`
 	SubmissionID  *EntityID      `gorm:"column:submission_id;type:text;index:idx_files_submission_id"`
+	SourcePath    *string        `gorm:"column:source_path;type:text;uniqueIndex:ux_files_source_path"`
 	Title         string         `gorm:"column:title;type:text;not null"`
 	OriginalName  string         `gorm:"column:original_name;type:text;not null"`
 	StoredName    string         `gorm:"column:stored_name;type:text;not null"`
