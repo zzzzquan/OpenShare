@@ -43,6 +43,7 @@ temp/
 data/
 uploads/
 storage/
+.localdata/
 .pids/
 *.pid
 
