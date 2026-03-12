@@ -31,6 +31,9 @@ func New(db *gorm.DB, cfg config.Config, sessionManager *session.Manager) *gin.E
 	publicCatalogHandler := handler.NewPublicCatalogHandler(
 		service.NewPublicCatalogService(repository.NewPublicCatalogRepository(db)),
 	)
+	publicDownloadHandler := handler.NewPublicDownloadHandler(
+		service.NewPublicDownloadService(repository.NewPublicDownloadRepository(db), storageService),
+	)
 	publicSubmissionHandler := handler.NewPublicSubmissionHandler(
 		service.NewPublicSubmissionService(repository.NewPublicSubmissionRepository(db)),
 	)
@@ -67,6 +70,7 @@ func New(db *gorm.DB, cfg config.Config, sessionManager *session.Manager) *gin.E
 	api := engine.Group("/api")
 	public := api.Group("/public")
 	public.GET("/files", publicCatalogHandler.ListPublicFiles)
+	public.GET("/files/:fileID/download", publicDownloadHandler.DownloadFile)
 	public.POST("/submissions", publicUploadHandler.CreateSubmission)
 	public.GET("/submissions/:receiptCode", publicSubmissionHandler.LookupByReceiptCode)
 
