@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import ReportDialog from "../../components/ReportDialog.vue";
 import { httpClient } from "../../lib/http/client";
 
 interface SearchResultItem {
@@ -200,6 +201,19 @@ function clearAll() {
   searched.value = false;
   syncURL();
 }
+
+// Report dialog
+const reportVisible = ref(false);
+const reportTargetType = ref<"file" | "folder">("file");
+const reportTargetId = ref("");
+const reportTargetName = ref("");
+
+function openReport(item: SearchResultItem) {
+  reportTargetType.value = item.entity_type;
+  reportTargetId.value = item.id;
+  reportTargetName.value = item.name;
+  reportVisible.value = true;
+}
 </script>
 
 <template>
@@ -344,9 +358,23 @@ function clearAll() {
           </div>
 
           <!-- File stats -->
-          <div v-if="item.entity_type === 'file'" class="mt-4 flex gap-4 text-xs text-slate-500">
+          <div v-if="item.entity_type === 'file'" class="mt-4 flex items-center gap-4 text-xs text-slate-500">
             <span v-if="item.size != null">{{ formatSize(item.size) }}</span>
             <span v-if="item.download_count != null">下载 {{ item.download_count }}</span>
+            <button
+              class="ml-auto text-xs text-slate-400 transition hover:text-rose-500"
+              @click="openReport(item)"
+            >
+              举报
+            </button>
+          </div>
+          <div v-else class="mt-4 flex justify-end">
+            <button
+              class="text-xs text-slate-400 transition hover:text-rose-500"
+              @click="openReport(item)"
+            >
+              举报
+            </button>
           </div>
         </article>
       </div>
@@ -394,5 +422,12 @@ function clearAll() {
       <p class="mt-4 text-lg font-medium text-slate-600">输入关键词或 Tag 开始搜索</p>
       <p class="mt-2 text-sm text-slate-400">支持文件名、文件夹名、Tag 搜索，支持组合过滤</p>
     </div>
+
+    <ReportDialog
+      v-model:visible="reportVisible"
+      :target-type="reportTargetType"
+      :target-id="reportTargetId"
+      :target-name="reportTargetName"
+    />
   </section>
 </template>

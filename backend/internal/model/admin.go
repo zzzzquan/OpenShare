@@ -23,6 +23,7 @@ const (
 	AdminPermissionManageTags          AdminPermission = "manage_tags"
 	AdminPermissionManageAdmins        AdminPermission = "manage_admins"
 	AdminPermissionManageSystem        AdminPermission = "manage_system"
+	AdminPermissionReviewReports       AdminPermission = "review_reports"
 )
 
 var validAdminPermissions = map[AdminPermission]struct{}{
@@ -33,6 +34,7 @@ var validAdminPermissions = map[AdminPermission]struct{}{
 	AdminPermissionManageTags:          {},
 	AdminPermissionManageAdmins:        {},
 	AdminPermissionManageSystem:        {},
+	AdminPermissionReviewReports:       {},
 }
 
 var validAdminRoles = map[AdminRole]struct{}{

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 
+import ReportDialog from "../../components/ReportDialog.vue";
 import { HttpError, httpClient } from "../../lib/http/client";
 
 interface PublicFileItem {
@@ -301,6 +302,26 @@ function formatSize(size: number) {
   }
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// Report dialog
+const reportVisible = ref(false);
+const reportTargetType = ref<"file" | "folder">("file");
+const reportTargetId = ref("");
+const reportTargetName = ref("");
+
+function openFileReport(file: PublicFileItem) {
+  reportTargetType.value = "file";
+  reportTargetId.value = file.id;
+  reportTargetName.value = file.title;
+  reportVisible.value = true;
+}
+
+function openFolderReport(folder: PublicFolderItem) {
+  reportTargetType.value = "folder";
+  reportTargetId.value = folder.id;
+  reportTargetName.value = folder.name;
+  reportVisible.value = true;
+}
 </script>
 
 <template>
@@ -454,12 +475,23 @@ function formatSize(size: number) {
 
       <!-- Subfolders -->
       <div v-if="folders.length > 0" class="mt-4 flex flex-wrap gap-3">
-        <button v-for="folder in folders" :key="folder.id" class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50" @click="navigateToFolder(folder.id, folder.name)">
-          <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-          </svg>
-          {{ folder.name }}
-        </button>
+        <div v-for="folder in folders" :key="folder.id" class="flex items-center gap-1">
+          <button class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:bg-blue-50" @click="navigateToFolder(folder.id, folder.name)">
+            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            {{ folder.name }}
+          </button>
+          <button
+            class="rounded-full p-1.5 text-slate-300 transition hover:text-rose-500"
+            title="举报此文件夹"
+            @click="openFolderReport(folder)"
+          >
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <p class="mt-3 text-sm text-slate-500">当前展示 {{ totalFiles }} 条可下载公开资料。</p>
@@ -495,8 +527,24 @@ function formatSize(size: number) {
               <dd class="mt-1 font-semibold text-slate-900">{{ formatSize(file.size) }}</dd>
             </div>
           </dl>
+
+          <div class="mt-3 flex justify-end">
+            <button
+              class="text-xs text-slate-400 transition hover:text-rose-500"
+              @click="openFileReport(file)"
+            >
+              举报
+            </button>
+          </div>
         </article>
       </div>
     </article>
+
+    <ReportDialog
+      v-model:visible="reportVisible"
+      :target-type="reportTargetType"
+      :target-id="reportTargetId"
+      :target-name="reportTargetName"
+    />
   </section>
 </template>

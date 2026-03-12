@@ -57,6 +57,10 @@ func New(db *gorm.DB, cfg config.Config, sessionManager *session.Manager) *gin.E
 		cfg.Upload.MaxFileSizeBytes+(1<<20),
 	)
 
+	reportRepo := repository.NewReportRepository(db)
+	reportService := service.NewReportService(reportRepo, searchService)
+	reportHandler := handler.NewReportHandler(reportService)
+
 	engine.GET("/healthz", func(ctx *gin.Context) {
 		sqlDB, err := db.DB()
 		if err != nil {
@@ -87,6 +91,7 @@ func New(db *gorm.DB, cfg config.Config, sessionManager *session.Manager) *gin.E
 	public.POST("/submissions", publicUploadHandler.CreateSubmission)
 	public.GET("/submissions/:receiptCode", publicSubmissionHandler.LookupByReceiptCode)
 	public.POST("/tag-submissions", tagHandler.SubmitCandidateTag)
+	public.POST("/reports", reportHandler.CreateReport)
 
 	admin := api.Group("/admin")
 	admin.POST("/session/login", adminAuthHandler.Login)
@@ -183,6 +188,23 @@ func New(db *gorm.DB, cfg config.Config, sessionManager *session.Manager) *gin.E
 		"/tag-submissions/:submissionID/reject",
 		middleware.RequireAdminPermission(model.AdminPermissionManageTags),
 		tagHandler.RejectCandidateTag,
+	)
+
+	// Report management routes
+	adminProtected.GET(
+		"/reports/pending",
+		middleware.RequireAdminPermission(model.AdminPermissionReviewReports),
+		reportHandler.ListPendingReports,
+	)
+	adminProtected.POST(
+		"/reports/:reportID/approve",
+		middleware.RequireAdminPermission(model.AdminPermissionReviewReports),
+		reportHandler.ApproveReport,
+	)
+	adminProtected.POST(
+		"/reports/:reportID/reject",
+		middleware.RequireAdminPermission(model.AdminPermissionReviewReports),
+		reportHandler.RejectReport,
 	)
 
 	adminPermissionProbe := adminProtected.Group("/_internal")

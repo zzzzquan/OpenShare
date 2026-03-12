@@ -6,6 +6,7 @@
         <h1 class="mt-2 text-2xl font-semibold text-white">管理后台</h1>
         <nav class="mt-8 flex flex-col gap-2 text-sm text-slate-300">
           <RouterLink class="rounded-2xl px-4 py-3 transition hover:bg-slate-800 hover:text-white" to="/admin">控制台</RouterLink>
+          <RouterLink class="rounded-2xl px-4 py-3 transition hover:bg-slate-800 hover:text-white" to="/admin/reports">举报管理</RouterLink>
           <RouterLink class="rounded-2xl px-4 py-3 transition hover:bg-slate-800 hover:text-white" to="/">返回用户端</RouterLink>
         </nav>
       </aside>

@@ -200,6 +200,8 @@ type Report struct {
 	FileID       *EntityID    `gorm:"column:file_id;type:text;index:idx_reports_file_id"`
 	FolderID     *EntityID    `gorm:"column:folder_id;type:text;index:idx_reports_folder_id"`
 	Reason       string       `gorm:"column:reason;type:text;not null"`
+	Description  string       `gorm:"column:description;type:text;not null;default:''"`
+	ReporterIP   string       `gorm:"column:reporter_ip;type:text;not null;default:''"`
 	Status       ReportStatus `gorm:"column:status;type:text;not null;default:'pending';index:idx_reports_status_created_at"`
 	ReviewReason string       `gorm:"column:review_reason;type:text;not null;default:''"`
 	ReviewerID   *EntityID    `gorm:"column:reviewer_id;type:text;index:idx_reports_reviewer_id_reviewed_at"`
