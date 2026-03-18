@@ -1,10 +1,13 @@
 package webui
 
 import (
+	"bytes"
 	"io/fs"
+	"mime"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,8 +18,6 @@ func Register(engine *gin.Engine) {
 		panic("webui: load embedded dist: " + err.Error())
 	}
 
-	fileServer := http.FileServer(http.FS(dist))
-
 	engine.NoRoute(func(ctx *gin.Context) {
 		requestPath := ctx.Request.URL.Path
 		if strings.HasPrefix(requestPath, "/api/") || requestPath == "/api" {
@@ -26,15 +27,16 @@ func Register(engine *gin.Engine) {
 
 		target := strings.TrimPrefix(path.Clean("/"+requestPath), "/")
 		if target == "" || target == "." {
-			target = "index.html"
-		}
-
-		if hasFile(dist, target) {
-			serveFile(ctx, fileServer, "/"+target)
+			serveEmbeddedFile(ctx, dist, "index.html")
 			return
 		}
 
-		serveFile(ctx, fileServer, "/index.html")
+		if hasFile(dist, target) {
+			serveEmbeddedFile(ctx, dist, target)
+			return
+		}
+
+		serveEmbeddedFile(ctx, dist, "index.html")
 	})
 }
 
@@ -58,4 +60,29 @@ func serveFile(ctx *gin.Context, handler http.Handler, name string) {
 	ctx.Request.URL.Path = name
 	handler.ServeHTTP(ctx.Writer, ctx.Request)
 	ctx.Request.URL.Path = originalPath
+}
+
+func serveEmbeddedFile(ctx *gin.Context, dist fs.FS, name string) {
+	if name != "index.html" {
+		// Static assets can still use FileServer semantics safely.
+		fileServer := http.FileServer(http.FS(dist))
+		serveFile(ctx, fileServer, "/"+name)
+		return
+	}
+
+	data, err := fs.ReadFile(dist, name)
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	ctx.Header("Content-Type", contentType(name))
+	http.ServeContent(ctx.Writer, ctx.Request, name, time.Time{}, bytes.NewReader(data))
+}
+
+func contentType(name string) string {
+	if contentType := mime.TypeByExtension(path.Ext(name)); contentType != "" {
+		return contentType
+	}
+	return "application/octet-stream"
 }
