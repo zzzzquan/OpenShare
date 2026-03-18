@@ -16,17 +16,20 @@ require_command() {
 
 build_image() {
   echo "building docker image ..."
-  docker build -t "$IMAGE_NAME" -f "$DOCKERFILE_PATH" "$ROOT_DIR"
+  docker build --platform linux/amd64 -t "$IMAGE_NAME" -f "$DOCKERFILE_PATH" "$ROOT_DIR"
 }
 
 run_build() {
   echo "running linux build in docker ..."
   docker run --rm \
+    --platform linux/amd64 \
     --user "$(id -u):$(id -g)" \
+    -e HOME=/tmp/openshare-build-home \
+    -e npm_config_cache=/tmp/openshare-build-home/.npm \
     -v "$ROOT_DIR:/workspace" \
     -w /workspace \
     "$IMAGE_NAME" \
-    bash ./scripts/build-linux.sh
+    bash -c 'rm -rf ./frontend/node_modules && bash ./scripts/build-linux.sh'
 }
 
 main() {

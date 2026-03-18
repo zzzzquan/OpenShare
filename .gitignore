@@ -33,10 +33,11 @@ Thumbs.db
 /backend/bin/
 /backend/tmp/
 /backend/.air/
+/release/
 # Generated Frontend Assets in Backend
 /backend/web/dist/*
 !/backend/web/dist/
-!/backend/web/dist/index.html
+!/backend/web/dist/.gitkeep
 # Local Configuration (Secrets)
 /backend/configs/config.local.json
 /backend/.env
