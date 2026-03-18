@@ -1,66 +1,45 @@
+# OS / editor metadata
 .DS_Store
+Thumbs.db
+/.idea/
+/.vscode/
 
-# Environment
-.env
-.env.*
-!.env.example
+# Environment and local-only config
+/.env
+/.env.*
+!/.env.example
+/backend/configs/config.local.json
 
-# Editors
-.idea/
-.vscode/
-
-# Logs
+# Logs and process markers
 *.log
-logs/
-
-# Node / frontend
-node_modules/
-dist/
-build/
-.cache/
-coverage/
-frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/coverage/
-frontend/.cache/
-vite.config.ts.timestamp-*
-*.tsbuildinfo
-
-# Go / backend
-bin/
-coverage.out
-*.out
-*.test
-backend/bin/
-backend/coverage.out
-backend/tmp/
-backend/.air/
-
-# Runtime data
-tmp/
-temp/
-data/
-uploads/
-/storage/
-.localdata/
-.pids/
 *.pid
+/.pids/
 
-# SQLite
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-*.sqlite3
+# Frontend dependencies and build outputs
+/frontend/node_modules/
+/frontend/dist/
+/frontend/coverage/
+/frontend/.cache/
+/frontend/tsconfig.tsbuildinfo
 
-# Local file storage
+# Backend build and embedded web assets
+/backend/bin/
+/backend/tmp/
+/backend/.air/
+/backend/web/dist/
+
+# Top-level runtime storage
+/.localdata/
 /repository/
 /staging/
 /trash/
+/storage/
+/tmp/
+/temp/
 
-# OS / generated
-Thumbs.db
-
-# Docs
-文档/
+# Top-level local databases
+/*.db
+/*.db-shm
+/*.db-wal
+/*.sqlite
+/*.sqlite3
