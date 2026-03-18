@@ -10,6 +10,7 @@ export const useSessionStore = defineStore("session", () => {
   const role = ref("");
   const status = ref("");
   const permissions = ref<string[]>([]);
+  const pendingAuditCount = ref(0);
   const isSuperAdmin = computed(() => role.value === "super_admin");
 
   function setAuthenticated(value: boolean, name = "", payload?: {
@@ -28,10 +29,15 @@ export const useSessionStore = defineStore("session", () => {
     role.value = value ? (payload?.role ?? "") : "";
     status.value = value ? (payload?.status ?? "") : "";
     permissions.value = value ? [...(payload?.permissions ?? [])] : [];
+    pendingAuditCount.value = value ? pendingAuditCount.value : 0;
   }
 
   function reset() {
     setAuthenticated(false);
+  }
+
+  function setPendingAuditCount(count: number) {
+    pendingAuditCount.value = Math.max(0, count);
   }
 
   function hasPermission(permission: string) {
@@ -47,8 +53,10 @@ export const useSessionStore = defineStore("session", () => {
     role,
     status,
     permissions,
+    pendingAuditCount,
     isSuperAdmin,
     setAuthenticated,
+    setPendingAuditCount,
     hasPermission,
     reset,
   };

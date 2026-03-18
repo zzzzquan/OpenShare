@@ -29,10 +29,9 @@ var (
 
 // validReportReasons maps the allowed reason codes to human-readable labels.
 var validReportReasons = map[string]string{
-	"copyright":      "侵权",
-	"content_error":  "内容错误",
-	"file_corrupted": "文件损坏",
-	"irrelevant":     "无关资料",
+	"copyright":     "侵权",
+	"content_error": "内容错误",
+	"irrelevant":    "无关资料",
 }
 
 // ---------------------------------------------------------------------------

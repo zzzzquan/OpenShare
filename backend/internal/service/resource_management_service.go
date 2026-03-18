@@ -51,6 +51,7 @@ type ListManagedFilesInput struct {
 
 type UpdateManagedFileInput struct {
 	Title       string
+	Extension   string
 	Description string
 	OperatorID  string
 	OperatorIP  string
@@ -65,10 +66,10 @@ type UpdateManagedFolderDescriptionInput struct {
 
 func NewResourceManagementService(repo *repository.ResourceManagementRepository, storageService *storage.Service, searchService *SearchService) *ResourceManagementService {
 	return &ResourceManagementService{
-		repo:     repo,
-		storage:  storageService,
-		search:   searchService,
-		nowFunc:  func() time.Time { return time.Now().UTC() },
+		repo:    repo,
+		storage: storageService,
+		search:  searchService,
+		nowFunc: func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -106,16 +107,30 @@ func (s *ResourceManagementService) UpdateFile(ctx context.Context, fileID strin
 	if fileID == "" {
 		return ErrManagedFileNotFound
 	}
+
+	current, err := s.repo.FindFileByID(ctx, fileID)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return ErrManagedFileNotFound
+	}
+
 	title := strings.TrimSpace(input.Title)
 	if title == "" {
 		return ErrInvalidResourceEdit
 	}
+	extension, ok := normalizeManagedFileExtension(input.Extension, current.Extension)
+	if !ok {
+		return ErrInvalidResourceEdit
+	}
 	description := strings.TrimSpace(input.Description)
+	originalName := buildManagedOriginalName(title, extension)
 	logID, err := identity.NewID()
 	if err != nil {
 		return fmt.Errorf("generate resource update log id: %w", err)
 	}
-	if err := s.repo.UpdateFileMetadata(ctx, fileID, title, description, input.OperatorID, input.OperatorIP, logID, s.nowFunc()); err != nil {
+	if err := s.repo.UpdateFileMetadata(ctx, fileID, title, extension, originalName, description, input.OperatorID, input.OperatorIP, logID, s.nowFunc()); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrManagedFileNotFound
 		}
@@ -380,8 +395,35 @@ func (s *ResourceManagementService) PublicUpdateFile(ctx context.Context, fileID
 	if !policy.AllowGuestEditDescription {
 		merged.Description = current.Description
 	}
+	merged.Extension = current.Extension
 	merged.OperatorID = ""
 	return s.UpdateFile(ctx, fileID, merged)
+}
+
+func normalizeManagedFileExtension(raw string, fallback string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		trimmed = strings.TrimSpace(fallback)
+	}
+	if trimmed == "" {
+		return "", true
+	}
+	trimmed = strings.TrimPrefix(trimmed, ".")
+	trimmed = strings.ToLower(strings.TrimSpace(trimmed))
+	if trimmed == "" {
+		return "", true
+	}
+	if strings.ContainsAny(trimmed, `/\ `) {
+		return "", false
+	}
+	return "." + trimmed, true
+}
+
+func buildManagedOriginalName(title string, extension string) string {
+	if extension == "" {
+		return title
+	}
+	return title + extension
 }
 
 func (s *ResourceManagementService) PublicDeleteFile(ctx context.Context, fileID string, operatorIP string) error {

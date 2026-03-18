@@ -13,6 +13,7 @@ import { renderSimpleMarkdown } from "../../lib/markdown";
 interface FileDetailResponse {
   id: string;
   title: string;
+  extension: string;
   description: string;
   original_name: string;
   mime_type: string;
@@ -29,7 +30,7 @@ const error = ref("");
 const message = ref("");
 const saveError = ref("");
 const saving = ref(false);
-const editTitle = ref("");
+const editFileName = ref("");
 const editDescription = ref("");
 const descriptionEditorOpen = ref(false);
 const canManageResourceDescriptions = ref(false);
@@ -65,7 +66,7 @@ const editorDirty = computed(() => {
   }
 
   return (
-    editTitle.value.trim() !== detail.value.title ||
+    editFileName.value.trim() !== detail.value.original_name ||
     editDescription.value.trim() !== (detail.value.description ?? "")
   );
 });
@@ -85,7 +86,7 @@ async function loadDetail() {
   try {
     detail.value = await httpClient.get<FileDetailResponse>(`/public/files/${encodeURIComponent(fileID.value)}`);
     if (detail.value) {
-      editTitle.value = detail.value.title;
+      editFileName.value = detail.value.original_name;
       editDescription.value = detail.value.description;
     }
   } catch (err: unknown) {
@@ -104,7 +105,7 @@ async function loadAdminPermission() {
 }
 
 function openDescriptionEditor() {
-  editTitle.value = detail.value?.title ?? "";
+  editFileName.value = detail.value?.original_name ?? "";
   editDescription.value = detail.value?.description ?? "";
   saveError.value = "";
   message.value = "";
@@ -115,7 +116,7 @@ function closeDescriptionEditor() {
   descriptionEditorOpen.value = false;
   saving.value = false;
   saveError.value = "";
-  editTitle.value = detail.value?.title ?? "";
+  editFileName.value = detail.value?.original_name ?? "";
   editDescription.value = detail.value?.description ?? "";
 }
 
@@ -146,6 +147,11 @@ function closeDeleteDialog() {
 
 async function saveDescription() {
   if (!detail.value || !editorDirty.value) return;
+  const parsed = splitEditableFileName(editFileName.value);
+  if (!parsed) {
+    saveError.value = "请输入有效的文件名。";
+    return;
+  }
   saving.value = true;
   saveError.value = "";
   message.value = "";
@@ -153,11 +159,12 @@ async function saveDescription() {
     await httpClient.request(`/admin/resources/files/${encodeURIComponent(detail.value.id)}`, {
       method: "PUT",
       body: {
-        title: editTitle.value.trim(),
+        title: parsed.title,
+        extension: parsed.extension,
         description: editDescription.value.trim(),
       },
     });
-    message.value = "文件简介已更新。";
+    message.value = "文件信息已更新。";
     await loadDetail();
     descriptionEditorOpen.value = false;
   } catch (err: unknown) {
@@ -242,6 +249,28 @@ function formatSize(size: number) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function normalizeExtensionInput(value: string) {
+  return value.trim().replace(/^\.+/, "").toLowerCase();
+}
+
+function splitEditableFileName(value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+  const lastDot = normalized.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot === normalized.length - 1) {
+    return {
+      title: normalized,
+      extension: "",
+    };
+  }
+  return {
+    title: normalized.slice(0, lastDot).trim(),
+    extension: normalizeExtensionInput(normalized.slice(lastDot + 1)),
+  };
 }
 
 function goBack() {
@@ -418,7 +447,7 @@ function downloadFile() {
                   v-model="feedbackDescription"
                   rows="5"
                   class="field-area"
-                  placeholder="信息不当/侵权/损坏……描述您遇到的问题，我们会尽快改进！"
+                  placeholder="信息不当/侵权/内容错误……描述您遇到的问题，我们会尽快改进！"
                 />
               </label>
 
@@ -450,7 +479,6 @@ function downloadFile() {
             <div class="border-b border-slate-200 pb-4">
               <div>
                 <h3 class="text-lg font-semibold text-slate-900">编辑文件信息</h3>
-                <p class="mt-1 text-sm text-slate-500">支持修改文件名与简介，简介支持简单 Markdown。</p>
               </div>
             </div>
 
@@ -458,10 +486,10 @@ function downloadFile() {
               <label class="space-y-2">
                 <span class="text-sm font-medium text-slate-700">文件名</span>
                 <input
-                  v-model="editTitle"
+                  v-model="editFileName"
                   class="field"
                   :disabled="!canManageResourceDescriptions"
-                  placeholder="输入文件名"
+                  placeholder="输入完整文件名，例如 example.xlsx"
                 />
               </label>
 
@@ -469,7 +497,7 @@ function downloadFile() {
                 v-model="editDescription"
                 rows="10"
                 class="field-area"
-                placeholder="输入文件简介，支持标题、粗体、链接、列表与行内代码。"
+                placeholder="输入文件简介，简介支持简单 Markdown。"
               />
 
               <p v-if="saveError" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

@@ -23,6 +23,10 @@ interface AdminMeResponse {
   };
 }
 
+interface AdminDashboardStatsResponse {
+  pending_audit_count: number;
+}
+
 const props = withDefaults(
   defineProps<{
     items?: NavbarItem[];
@@ -62,8 +66,10 @@ onMounted(async () => {
   try {
     const response = await httpClient.get<AdminMeResponse>("/admin/me");
     applySession(response);
+    await loadPendingAuditCount();
   } catch {
     sessionStore.reset();
+    sessionStore.setPendingAuditCount(0);
   }
 });
 
@@ -95,6 +101,7 @@ async function login() {
       password: password.value,
     });
     applySession(response);
+    await loadPendingAuditCount();
     password.value = "";
     loginSuccess.value = true;
 
@@ -118,6 +125,15 @@ function applySession(response: AdminMeResponse) {
     status: response.admin.status,
     permissions: response.admin.permissions,
   });
+}
+
+async function loadPendingAuditCount() {
+  try {
+    const response = await httpClient.get<AdminDashboardStatsResponse>("/admin/dashboard/stats");
+    sessionStore.setPendingAuditCount(response.pending_audit_count ?? 0);
+  } catch {
+    sessionStore.setPendingAuditCount(0);
+  }
 }
 
 function readApiError(error: unknown) {
@@ -184,26 +200,32 @@ function onPointerDown(event: PointerEvent) {
           <Github class="h-[17.2px] w-[17.2px]" />
         </a>
 
-        <button
-          type="button"
-          aria-label="管理员入口"
-          class="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100"
-          @click="onUserAction"
-        >
-          <img
-            v-if="sessionStore.authenticated && sessionStore.avatarUrl"
-            :src="sessionStore.avatarUrl"
-            alt="管理员头像"
-            class="h-full w-full object-cover"
-          />
-          <span
-            v-else-if="sessionStore.authenticated && userButtonLabel"
-            class="text-xs font-semibold leading-none"
+        <div class="relative">
+          <button
+            type="button"
+            aria-label="管理员入口"
+            class="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+            @click="onUserAction"
           >
-            {{ userButtonLabel }}
-          </span>
-          <UserRound v-else class="h-4.5 w-4.5" />
-        </button>
+            <img
+              v-if="sessionStore.authenticated && sessionStore.avatarUrl"
+              :src="sessionStore.avatarUrl"
+              alt="管理员头像"
+              class="h-full w-full object-cover"
+            />
+            <span
+              v-else-if="sessionStore.authenticated && userButtonLabel"
+              class="text-xs font-semibold leading-none"
+            >
+              {{ userButtonLabel }}
+            </span>
+            <UserRound v-else class="h-4.5 w-4.5" />
+          </button>
+          <span
+            v-if="sessionStore.authenticated && sessionStore.pendingAuditCount > 0"
+            class="absolute right-[-1px] top-[-1px] h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white"
+          />
+        </div>
 
         <section
           v-if="panelOpen"

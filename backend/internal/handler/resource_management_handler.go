@@ -17,6 +17,7 @@ type ResourceManagementHandler struct {
 
 type updateManagedFileRequest struct {
 	Title       string `json:"title"`
+	Extension   string `json:"extension"`
 	Description string `json:"description"`
 }
 
@@ -60,6 +61,7 @@ func (h *ResourceManagementHandler) UpdateFile(ctx *gin.Context) {
 
 	err := h.service.UpdateFile(ctx.Request.Context(), ctx.Param("fileID"), service.UpdateManagedFileInput{
 		Title:       req.Title,
+		Extension:   req.Extension,
 		Description: req.Description,
 		OperatorID:  identity.AdminID,
 		OperatorIP:  ctx.ClientIP(),
@@ -87,6 +89,7 @@ func (h *ResourceManagementHandler) PublicUpdateFile(ctx *gin.Context) {
 
 	err := h.service.PublicUpdateFile(ctx.Request.Context(), ctx.Param("fileID"), service.UpdateManagedFileInput{
 		Title:       req.Title,
+		Extension:   req.Extension,
 		Description: req.Description,
 		OperatorIP:  ctx.ClientIP(),
 	})

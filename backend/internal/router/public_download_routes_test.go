@@ -96,12 +96,13 @@ func TestPublicFileDetailReturnsMetadata(t *testing.T) {
 	}
 	var response struct {
 		ID          string `json:"id"`
+		Extension   string `json:"extension"`
 		Description string `json:"description"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode detail response: %v", err)
 	}
-	if response.ID != file.ID || response.Description != "detail" {
+	if response.ID != file.ID || response.Description != "detail" || response.Extension != file.Extension {
 		t.Fatalf("unexpected detail response: %+v", response)
 	}
 }

@@ -34,6 +34,7 @@ const loginError = ref("");
 const pendingAuditCount = ref(0);
 
 const navItems = computed<AdminSidebarItem[]>(() => [
+  { to: "/admin", label: "控制台", icon: LayoutDashboard },
   { to: "/admin/audit", label: "审核", icon: Inbox, hasAlert: pendingAuditCount.value > 0 },
   ...(sessionStore.hasPermission("announcements") ? [{ to: "/admin/announcements", label: "公告", icon: Megaphone }] : []),
   { to: "/admin/logs", label: "操作记录", icon: ScrollText },
@@ -59,6 +60,7 @@ async function restoreSession() {
   } catch {
     sessionStore.reset();
     pendingAuditCount.value = 0;
+    sessionStore.setPendingAuditCount(0);
   } finally {
     loading.value = false;
   }
@@ -87,6 +89,7 @@ async function login() {
 async function logout() {
   await httpClient.post("/admin/session/logout");
   pendingAuditCount.value = 0;
+  sessionStore.setPendingAuditCount(0);
   sessionStore.reset();
 }
 
@@ -105,8 +108,10 @@ async function loadPendingAuditCount() {
   try {
     const response = await httpClient.get<AdminDashboardStatsResponse>("/admin/dashboard/stats");
     pendingAuditCount.value = response.pending_audit_count ?? 0;
+    sessionStore.setPendingAuditCount(pendingAuditCount.value);
   } catch {
     pendingAuditCount.value = 0;
+    sessionStore.setPendingAuditCount(0);
   }
 }
 
@@ -183,12 +188,11 @@ async function trackVisit() {
       <aside class="fixed inset-y-0 left-0 z-20 w-[240px]">
         <AdminSidebar
           :current-path="route.path"
-          :items="[{ label: '控制台', to: '/admin', icon: LayoutDashboard }, ...navItems]"
+          :items="navItems"
           :title="sessionStore.displayName"
           subtitle=""
           :avatar-url="sessionStore.avatarUrl"
           :avatar-fallback="sessionStore.displayName.slice(0, 1).toUpperCase() || 'A'"
-          :avatar-has-alert="pendingAuditCount > 0"
           @logout="logout"
         >
           <template #footer-actions>

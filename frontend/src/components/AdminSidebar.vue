@@ -21,7 +21,6 @@ const props = withDefaults(
     homeTo?: string;
     homeLabel?: string;
     logoutLabel?: string;
-    avatarHasAlert?: boolean;
   }>(),
   {
     title: "Superadmin",
@@ -31,7 +30,6 @@ const props = withDefaults(
     homeTo: "/",
     homeLabel: "返回首页",
     logoutLabel: "退出登录",
-    avatarHasAlert: false,
   },
 );
 
@@ -54,10 +52,6 @@ const emit = defineEmits<{
           <img v-if="avatarUrl" :src="avatarUrl" alt="管理员头像" class="h-full w-full object-cover" />
           <span v-else>{{ avatarFallback }}</span>
         </div>
-        <span
-          v-if="avatarHasAlert"
-          class="ml-[-1.2rem] mt-[-1.6rem] h-2.5 w-2.5 shrink-0 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-950"
-        />
         <div class="min-w-0">
           <p class="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">{{ title }}</p>
           <p v-if="subtitle" class="truncate text-xs text-slate-500 dark:text-slate-400">{{ subtitle }}</p>

@@ -24,8 +24,6 @@ interface PendingReportItem {
   id: string;
   target_name: string;
   target_type: "file" | "folder";
-  reason: string;
-  reason_label: string;
   description: string;
   reporter_ip: string;
   created_at: string;
@@ -267,7 +265,6 @@ function notifyPendingAuditChanged() {
                   <h3 class="text-base font-semibold text-slate-900">{{ report.target_name }}</h3>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-3 text-sm text-slate-500">
-                  <span class="rounded-lg bg-rose-50 px-2.5 py-1 text-rose-700">{{ report.reason_label || report.reason }}</span>
                   <span>反馈时间：{{ formatDate(report.created_at) }}</span>
                   <span>IP: {{ report.reporter_ip }}</span>
                 </div>
@@ -330,7 +327,6 @@ function notifyPendingAuditChanged() {
         <div class="mt-5 space-y-4">
           <div class="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
             <p class="font-medium text-slate-900">{{ reportReviewTarget.target_name }}</p>
-            <p class="mt-1">{{ reportReviewTarget.reason_label || reportReviewTarget.reason }}</p>
           </div>
           <textarea
             v-model="reportReviewReason"

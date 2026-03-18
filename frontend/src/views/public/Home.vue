@@ -151,7 +151,6 @@ const uploadDropActive = ref(false);
 const uploadCollecting = ref(false);
 const feedbackModalOpen = ref(false);
 const feedbackTarget = ref<{ id: string; type: "file" | "folder"; name: string } | null>(null);
-const feedbackReason = ref("file_corrupted");
 const feedbackDescription = ref("");
 const feedbackSubmitting = ref(false);
 const feedbackMessage = ref("");
@@ -984,7 +983,6 @@ function viewModeLabel(mode: "cards" | "table") {
 function openFeedbackModal(target: { id: string; type: "file" | "folder"; name: string }) {
   feedbackModalOpen.value = true;
   feedbackTarget.value = target;
-  feedbackReason.value = "file_corrupted";
   feedbackDescription.value = "";
   feedbackMessage.value = "";
   feedbackError.value = "";
@@ -1065,7 +1063,7 @@ async function submitFeedback() {
     const response = await httpClient.post<{ receipt_code: string }>("/public/reports", {
       file_id: feedbackTarget.value.type === "file" ? feedbackTarget.value.id : "",
       folder_id: feedbackTarget.value.type === "folder" ? feedbackTarget.value.id : "",
-      reason: feedbackReason.value,
+      reason: "content_error",
       description: feedbackDescription.value.trim(),
     });
     feedbackMessage.value = `反馈已提交，请保存回执码 ${response.receipt_code}。`;
@@ -1889,7 +1887,7 @@ async function syncSessionReceiptCode() {
                 v-model="feedbackDescription"
                 rows="5"
                 class="field-area"
-                placeholder="信息不当/侵权/损坏……描述您遇到的问题，我们会尽快改进！"
+              placeholder="信息不当/侵权/内容错误……描述您遇到的问题，我们会尽快改进！"
               />
             </label>
 
@@ -1915,10 +1913,9 @@ async function syncSessionReceiptCode() {
       <div class="flex min-h-screen items-center justify-center px-4 py-6">
           <div class="modal-card panel w-full max-w-3xl overflow-hidden p-6">
             <div class="border-b border-slate-200 pb-4">
-              <div>
-                <h3 class="text-lg font-semibold text-slate-900">编辑文件夹信息</h3>
-                <p class="mt-1 text-sm text-slate-500">支持修改文件夹名与简介，简介支持简单 Markdown。</p>
-              </div>
+                  <div>
+                    <h3 class="text-lg font-semibold text-slate-900">编辑文件夹信息</h3>
+                  </div>
             </div>
 
           <div class="mt-5 space-y-4">
@@ -1936,7 +1933,7 @@ async function syncSessionReceiptCode() {
               v-model="folderDescriptionDraft"
               rows="10"
               class="field-area"
-              placeholder="输入文件夹简介，支持标题、粗体、链接、列表与行内代码。"
+              placeholder="输入文件夹简介，简介支持简单 Markdown。"
             />
 
             <p v-if="folderDescriptionError" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

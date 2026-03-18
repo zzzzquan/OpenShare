@@ -83,7 +83,7 @@ async function lookupReceipt() {
   }
 
   if (!submissionLookupResult.value && !feedbackLookupResult.value) {
-    lookupError.value = "未找到对应回执码。";
+    lookupError.value = "未找到对应信息。";
   }
   lookupLoading.value = false;
 }

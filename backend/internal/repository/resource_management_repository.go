@@ -174,6 +174,8 @@ func (r *ResourceManagementRepository) UpdateFileMetadata(
 	ctx context.Context,
 	fileID string,
 	title string,
+	extension string,
+	originalName string,
 	description string,
 	operatorID string,
 	operatorIP string,
@@ -182,9 +184,11 @@ func (r *ResourceManagementRepository) UpdateFileMetadata(
 ) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&model.File{}).Where("id = ?", fileID).Updates(map[string]any{
-			"title":       title,
-			"description": description,
-			"updated_at":  now,
+			"original_name": originalName,
+			"title":         title,
+			"extension":     extension,
+			"description":   description,
+			"updated_at":    now,
 		})
 		if result.Error != nil {
 			return fmt.Errorf("update file metadata: %w", result.Error)

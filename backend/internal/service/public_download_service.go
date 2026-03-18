@@ -37,6 +37,7 @@ type DownloadableFile struct {
 type PublicFileDetail struct {
 	ID            string    `json:"id"`
 	Title         string    `json:"title"`
+	Extension     string    `json:"extension"`
 	Description   string    `json:"description"`
 	OriginalName  string    `json:"original_name"`
 	MimeType      string    `json:"mime_type"`
@@ -113,6 +114,7 @@ func (s *PublicDownloadService) GetFileDetail(ctx context.Context, fileID string
 	return &PublicFileDetail{
 		ID:            file.ID,
 		Title:         file.Title,
+		Extension:     file.Extension,
 		Description:   file.Description,
 		OriginalName:  file.OriginalName,
 		MimeType:      file.MimeType,
