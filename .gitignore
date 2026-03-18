@@ -42,7 +42,7 @@ tmp/
 temp/
 data/
 uploads/
-storage/
+/storage/
 .localdata/
 .pids/
 *.pid
@@ -55,9 +55,9 @@ storage/
 *.sqlite3
 
 # Local file storage
-repository/
-staging/
-trash/
+/repository/
+/staging/
+/trash/
 
 # OS / generated
 Thumbs.db
