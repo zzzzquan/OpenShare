@@ -24,6 +24,8 @@ Thumbs.db
 /frontend/yarn-debug.log*
 /frontend/yarn-error.log*
 /frontend/pnpm-debug.log*
+# Local lockfile drift
+/frontend/package-lock.json
 # Local Environment
 /frontend/.env.local
 /frontend/.env.*.local

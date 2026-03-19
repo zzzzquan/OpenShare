@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 BACKEND_DIR="$ROOT_DIR/backend"
 EMBED_DIR="$BACKEND_DIR/web/dist"
-RELEASE_DIR="$ROOT_DIR/release/linux-amd64"
+RELEASE_DIR="$ROOT_DIR/release/amd64"
 OUTPUT_BIN="$RELEASE_DIR/openshare"
 
 require_command() {
@@ -67,6 +67,40 @@ build_backend() {
   )
 }
 
+package_release() {
+  echo "packaging release directory ..."
+  mkdir -p "$RELEASE_DIR/configs" "$RELEASE_DIR/data/staging" "$RELEASE_DIR/data/trash"
+  cp "$BACKEND_DIR/configs/config.default.json" "$RELEASE_DIR/configs/config.default.json"
+  cat >"$RELEASE_DIR/configs/config.local.json" <<'EOF'
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8890
+  },
+  "database": {
+    "path": "data/openshare.db"
+  },
+  "storage": {
+    "root": "data"
+  },
+  "session": {
+    "secret": "change-this-session-secret-before-production"
+  }
+}
+EOF
+  cat >"$RELEASE_DIR/start.sh" <<'EOF'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+exec ./openshare
+EOF
+  chmod +x "$RELEASE_DIR/start.sh"
+}
+
 print_summary() {
   echo
   echo "build complete"
@@ -83,6 +117,7 @@ main() {
   prepare_frontend
   sync_frontend_dist
   build_backend
+  package_release
   print_summary
 }
 
