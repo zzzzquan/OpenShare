@@ -45,8 +45,8 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <aside class="flex h-full flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-    <div class="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+  <aside class="flex h-auto flex-col border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:h-full lg:border-b-0 lg:border-r">
+    <div class="border-b border-slate-200 px-4 py-4 dark:border-slate-800 sm:px-5">
       <div class="flex items-center gap-3">
         <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-[#fafafa] text-lg font-semibold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
           <img v-if="avatarUrl" :src="avatarUrl" alt="管理员头像" class="h-full w-full object-cover" />
@@ -59,12 +59,13 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <nav class="flex-1 space-y-1 px-3 py-4">
+    <nav class="flex-1 overflow-x-auto px-3 py-3 lg:overflow-visible lg:py-4">
+      <div class="flex gap-2 lg:block lg:space-y-1">
       <template v-for="item in items" :key="`${item.label}-${item.to}`">
         <RouterLink
           v-if="!item.disabled"
           :to="item.to"
-          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition"
+          class="group flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition"
           :class="isActive(item.to) ? 'bg-slate-200/70 text-slate-900 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'"
         >
           <span
@@ -81,7 +82,7 @@ const emit = defineEmits<{
 
         <div
           v-else
-          class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-600"
+          class="flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 dark:text-slate-600"
         >
           <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800" />
           <component :is="item.icon || fallbackIcon" class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-700" />
@@ -92,21 +93,22 @@ const emit = defineEmits<{
           />
         </div>
       </template>
+      </div>
     </nav>
 
     <div class="border-t border-slate-200 p-3 dark:border-slate-800">
-      <div class="space-y-1">
+      <div class="flex flex-wrap gap-2 lg:block lg:space-y-1">
         <slot name="footer-actions" />
         <RouterLink
           :to="homeTo"
-          class="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+          class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
         >
           <Home class="h-4 w-4 shrink-0" />
           <span>{{ homeLabel }}</span>
         </RouterLink>
         <button
           type="button"
-          class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+          class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100 lg:w-full"
           @click="emit('logout')"
         >
           <span class="flex h-4 w-4 shrink-0 items-center justify-center text-base leading-none">↪</span>

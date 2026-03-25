@@ -41,7 +41,7 @@ const emit = defineEmits<{
 
 <template>
   <section class="panel p-4">
-    <header class="flex items-center justify-between gap-3">
+    <header class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
       <h2 class="text-sm font-medium tracking-tight text-slate-900 dark:text-slate-100">
         {{ title }}
       </h2>
@@ -49,7 +49,7 @@ const emit = defineEmits<{
         <button
           v-if="actionLabel"
           type="button"
-          class="text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+          class="shrink-0 text-xs font-medium text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
           @click="emit('action')"
         >
           {{ actionLabel }}

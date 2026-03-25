@@ -32,6 +32,9 @@ func TestPublicReceiptCodeEnsuresSessionCode(t *testing.T) {
 	if len(recorder.Result().Cookies()) == 0 || recorder.Result().Cookies()[0].Value == "" {
 		t.Fatal("expected receipt code cookie to be set")
 	}
+	if recorder.Result().Cookies()[0].MaxAge != 180*24*60*60 {
+		t.Fatalf("expected persistent receipt code cookie MaxAge=%d, got %d", 180*24*60*60, recorder.Result().Cookies()[0].MaxAge)
+	}
 }
 
 func TestPublicReceiptCodeReusesCookie(t *testing.T) {
@@ -56,5 +59,8 @@ func TestPublicReceiptCodeReusesCookie(t *testing.T) {
 	}
 	if response.ReceiptCode != "SESSION88" {
 		t.Fatalf("expected existing receipt code SESSION88, got %q", response.ReceiptCode)
+	}
+	if len(recorder.Result().Cookies()) == 0 || recorder.Result().Cookies()[0].MaxAge != 180*24*60*60 {
+		t.Fatalf("expected reused receipt code cookie MaxAge=%d", 180*24*60*60)
 	}
 }

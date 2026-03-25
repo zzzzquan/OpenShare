@@ -159,13 +159,13 @@ function onPointerDown(event: PointerEvent) {
 </script>
 
 <template>
-  <header class="fixed inset-x-0 top-0 z-[60] border-b border-slate-200 bg-white/95 backdrop-blur after:pointer-events-none after:absolute after:bottom-[-1px] after:left-full after:top-0 after:w-screen after:border-b after:border-slate-200 after:bg-white/95 dark:border-slate-800 dark:bg-slate-950/95 dark:after:border-slate-800 dark:after:bg-slate-950/95">
-    <div class="app-container grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-4">
-      <div class="flex items-center justify-start">
-        <RouterLink to="/" class="inline-flex items-center gap-2.5">
+  <header class="fixed inset-x-0 top-0 z-[60] border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+    <div class="app-container grid h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 md:gap-4">
+      <div class="min-w-0 flex items-center justify-start">
+        <RouterLink to="/" class="inline-flex min-w-0 items-center gap-2 sm:gap-2.5">
           <img src="/favicon.svg" alt="OpenShare" class="h-8 w-8" />
           <span
-            class="text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100"
+            class="truncate text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-[16px]"
             style="font-family: 'Roboto Slab', serif"
           >
             OpenShare
@@ -173,12 +173,12 @@ function onPointerDown(event: PointerEvent) {
         </RouterLink>
       </div>
 
-      <nav class="flex items-center justify-center gap-1">
+      <nav class="flex items-center justify-center gap-1 overflow-x-auto">
         <RouterLink
           v-for="item in items"
           :key="item.to"
           :to="item.to"
-          class="rounded-lg px-4 py-2 text-sm font-medium transition"
+          class="shrink-0 rounded-lg px-2.5 py-2 text-sm font-medium transition sm:px-4"
           :class="
             isActive(item.to)
               ? 'bg-slate-200/70 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
@@ -189,37 +189,39 @@ function onPointerDown(event: PointerEvent) {
         </RouterLink>
       </nav>
 
-      <div ref="panelRef" class="relative flex items-center justify-end gap-2">
-        <a
-          :href="githubHref"
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Open GitHub"
-          class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black text-white transition hover:bg-neutral-800"
-        >
-          <Github class="h-[17.2px] w-[17.2px]" />
-        </a>
+      <div ref="panelRef" class="relative flex min-w-0 items-center justify-end gap-2 leading-none">
+        <div class="relative h-9 w-9 shrink-0">
+          <a
+            :href="githubHref"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open GitHub"
+            class="absolute inset-0 inline-flex items-center justify-center rounded-full bg-black text-white transition hover:bg-neutral-800"
+          >
+            <Github class="h-[17.2px] w-[17.2px]" />
+          </a>
+        </div>
 
-        <div class="relative">
+        <div class="relative h-9 w-9 shrink-0">
           <button
             type="button"
             aria-label="管理员入口"
-            class="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+            class="absolute inset-0 m-0 inline-flex appearance-none items-center justify-center overflow-hidden rounded-full bg-white p-0 text-slate-600 ring-1 ring-inset ring-slate-200 transition hover:bg-slate-100 hover:text-slate-900 dark:bg-slate-950 dark:text-slate-300 dark:ring-slate-800 dark:hover:bg-slate-900 dark:hover:text-slate-100"
             @click="onUserAction"
           >
             <img
               v-if="sessionStore.authenticated && sessionStore.avatarUrl"
               :src="sessionStore.avatarUrl"
               alt="管理员头像"
-              class="h-full w-full object-cover"
+              class="absolute inset-0 block h-full w-full rounded-full object-cover object-center"
             />
             <span
               v-else-if="sessionStore.authenticated && userButtonLabel"
-              class="text-xs font-semibold leading-none"
+              class="relative z-[1] text-xs font-semibold leading-none"
             >
               {{ userButtonLabel }}
             </span>
-            <UserRound v-else class="h-4.5 w-4.5" />
+            <UserRound v-else class="relative z-[1] h-[18px] w-[18px]" />
           </button>
           <span
             v-if="sessionStore.authenticated && sessionStore.pendingAuditCount > 0"
@@ -229,7 +231,7 @@ function onPointerDown(event: PointerEvent) {
 
         <section
           v-if="panelOpen"
-          class="absolute right-0 top-[calc(100%+12px)] z-20 w-[320px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-950/[0.06] dark:border-slate-800 dark:bg-slate-950 dark:shadow-none"
+          class="absolute right-0 top-[calc(100%+12px)] z-20 w-[min(320px,calc(100vw-32px))] rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-950/[0.06] dark:border-slate-800 dark:bg-slate-950 dark:shadow-none"
         >
             <div v-if="loginSuccess" class="flex min-h-[184px] flex-col items-center justify-center gap-3 text-center">
               <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">

@@ -148,8 +148,8 @@ async function trackVisit() {
       <p class="text-sm text-slate-500">正在加载管理后台…</p>
     </div>
 
-    <div v-else-if="!sessionStore.authenticated" class="app-container flex min-h-screen items-center justify-center py-16">
-      <section class="panel w-full max-w-[420px] p-8">
+    <div v-else-if="!sessionStore.authenticated" class="app-container flex min-h-screen items-center justify-center py-10 sm:py-16">
+      <section class="panel w-full max-w-[420px] p-5 sm:p-8">
         <div class="space-y-2">
           <p class="text-sm font-semibold text-slate-600 dark:text-slate-400">OpenShare Admin</p>
           <h2 class="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">管理员登录</h2>
@@ -184,8 +184,8 @@ async function trackVisit() {
       </section>
     </div>
 
-    <div v-else class="flex min-h-screen bg-[#fafafa] dark:bg-slate-950">
-      <aside class="fixed inset-y-0 left-0 z-20 w-[240px]">
+    <div v-else class="flex min-h-screen flex-col bg-[#fafafa] dark:bg-slate-950 lg:flex-row">
+      <aside class="z-20 w-full lg:fixed lg:inset-y-0 lg:left-0 lg:w-[240px]">
         <AdminSidebar
           :current-path="route.path"
           :items="navItems"
@@ -208,8 +208,8 @@ async function trackVisit() {
         </AdminSidebar>
       </aside>
 
-      <div class="min-w-0 flex-1 pl-[240px]">
-        <main class="mx-auto w-full max-w-[1240px] px-6 py-8 lg:px-8">
+      <div class="min-w-0 flex-1 lg:pl-[240px]">
+        <main class="mx-auto w-full max-w-[1240px] px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           <RouterView />
         </main>
       </div>

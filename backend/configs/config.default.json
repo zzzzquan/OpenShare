@@ -35,11 +35,11 @@
     "name": "openshare_session",
     "secret": "replace-this-in-local-config",
     "path": "/",
-    "max_age_seconds": 86400,
+    "max_age_seconds": 604800,
     "secure": false,
     "http_only": true,
     "same_site": "lax",
-    "renew_window_seconds": 21600
+    "renew_window_seconds": 604800
   },
   "rate_limit": {
     "upload": {

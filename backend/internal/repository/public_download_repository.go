@@ -60,6 +60,26 @@ func (r *PublicDownloadRepository) FindActiveFolderByID(ctx context.Context, fol
 	return &folder, nil
 }
 
+func (r *PublicDownloadRepository) ListActiveFoldersByIDs(ctx context.Context, folderIDs []string) ([]ActiveFolderNode, error) {
+	if len(folderIDs) == 0 {
+		return nil, nil
+	}
+
+	var rows []ActiveFolderNode
+	err := r.db.WithContext(ctx).
+		Model(&model.Folder{}).
+		Select("id, parent_id, name").
+		Where("status = ?", model.ResourceStatusActive).
+		Where("id IN ?", folderIDs).
+		Find(&rows).
+		Error
+	if err != nil {
+		return nil, fmt.Errorf("list active folders by ids: %w", err)
+	}
+
+	return rows, nil
+}
+
 func (r *PublicDownloadRepository) IncrementDownloadCount(ctx context.Context, fileID string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var file model.File

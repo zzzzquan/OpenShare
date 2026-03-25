@@ -3,6 +3,7 @@ package handler
 import "github.com/gin-gonic/gin"
 
 const publicReceiptCookieName = "openshare_receipt_code"
+const publicReceiptCookieMaxAgeSeconds = 180 * 24 * 60 * 60
 
 func readPublicReceiptCode(ctx *gin.Context) string {
 	value, err := ctx.Cookie(publicReceiptCookieName)
@@ -13,5 +14,5 @@ func readPublicReceiptCode(ctx *gin.Context) string {
 }
 
 func writePublicReceiptCode(ctx *gin.Context, receiptCode string) {
-	ctx.SetCookie(publicReceiptCookieName, receiptCode, 0, "/", "", false, false)
+	ctx.SetCookie(publicReceiptCookieName, receiptCode, publicReceiptCookieMaxAgeSeconds, "/", "", false, false)
 }

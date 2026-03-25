@@ -183,7 +183,7 @@ function statusBadgeClass(status: string) {
 
 <template>
   <div class="app-container py-8 sm:py-10">
-    <div class="mx-auto max-w-[66%] min-w-[720px]">
+    <div class="mx-auto w-full max-w-4xl">
       <SurfaceCard>
         <PageHeader
           eyebrow="Receipt"
@@ -194,19 +194,19 @@ function statusBadgeClass(status: string) {
           本会话回执码为：<span class="font-semibold text-slate-900">{{ receiptCode || "暂未同步" }}</span>。请妥善保存该回执码，若清除浏览器缓存或更换浏览器/设备，该回执码将会改变。
         </div>
 
-        <div class="mt-6 flex gap-3">
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row">
           <input
             v-model="receiptCode"
             class="field flex-1"
             placeholder="输入回执码"
             readonly
           />
-          <button class="btn-secondary" :disabled="lookupLoading" @click="lookupReceipt">
+          <button class="btn-secondary w-full sm:w-auto" :disabled="lookupLoading" @click="lookupReceipt">
             {{ lookupLoading ? "查询中…" : "查询" }}
           </button>
         </div>
 
-        <div class="mt-4 flex gap-3">
+        <div class="mt-4 flex flex-wrap gap-3">
           <button class="text-sm text-slate-500 transition hover:text-slate-900" @click="clearReceipt">
             清除本地回执码
           </button>
@@ -221,7 +221,7 @@ function statusBadgeClass(status: string) {
           <article
             v-for="item in receiptRecords"
             :key="item.key"
-            class="rounded-xl border border-slate-200 bg-white px-5 py-5"
+            class="rounded-xl border border-slate-200 bg-white px-4 py-4 sm:px-5 sm:py-5"
           >
             <div class="space-y-4">
               <div>

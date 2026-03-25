@@ -14,6 +14,8 @@ interface FileDetailResponse {
   id: string;
   title: string;
   extension: string;
+  folder_id: string;
+  path: string;
   description: string;
   original_name: string;
   mime_type: string;
@@ -49,13 +51,22 @@ const fileID = computed(() => String(route.params.fileID ?? ""));
 const downloadURL = computed(() => `/api/public/files/${encodeURIComponent(fileID.value)}/download`);
 const descriptionHTML = computed(() => renderSimpleMarkdown(detail.value?.description ?? ""));
 const feedbackSubmitDisabled = computed(() => feedbackSubmitting.value || !feedbackDescription.value.trim());
-const detailStats = computed(() => {
+const primaryDetailRows = computed(() => {
   if (!detail.value) {
     return [];
   }
 
   return [
     { label: "文件名", value: detail.value.original_name },
+    { label: "所属文件夹", value: detail.value.path || "主页根目录" },
+  ];
+});
+const secondaryDetailRows = computed(() => {
+  if (!detail.value) {
+    return [];
+  }
+
+  return [
     { label: "下载量", value: String(detail.value.download_count) },
     { label: "文件大小", value: formatSize(detail.value.size) },
     { label: "更新时间", value: formatDate(detail.value.uploaded_at) },
@@ -281,8 +292,9 @@ function splitEditableFileName(value: string) {
 }
 
 function goBack() {
-  if (window.history.length > 1) {
-    void router.back();
+  const folderID = detail.value?.folder_id?.trim() ?? "";
+  if (folderID) {
+    void router.push({ name: "public-home", query: { folder: folderID } });
     return;
   }
   void router.push({ name: "public-home" });
@@ -306,78 +318,101 @@ function downloadFile() {
 </script>
 
 <template>
-  <section class="app-container py-8 sm:py-10">
-    <div class="mx-auto max-w-[66%] min-w-[720px] space-y-6">
+  <section class="app-container py-6 sm:py-8 sm:py-10">
+    <div class="mx-auto w-full max-w-4xl space-y-6">
       <SurfaceCard>
         <p v-if="loading" class="text-sm text-slate-500">加载中…</p>
 
         <div v-else-if="error" class="space-y-4">
           <p class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</p>
-          <div class="flex gap-3">
-            <button type="button" class="btn-secondary" @click="goBack">返回上一页</button>
-            <button type="button" class="btn-primary" @click="$router.push({ name: 'public-home' })">返回首页</button>
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <button type="button" class="btn-secondary w-full sm:w-auto" @click="goBack">返回上一页</button>
+            <button type="button" class="btn-primary w-full sm:w-auto" @click="$router.push({ name: 'public-home' })">返回首页</button>
           </div>
         </div>
 
         <template v-else-if="detail">
-          <p v-if="message" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ message }}</p>
+          <p v-if="message" class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ message }}</p>
 
           <section>
-            <div class="flex items-start justify-between gap-4">
-              <div class="min-w-0 flex-1 space-y-3">
+            <div class="space-y-4">
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div class="space-y-2">
                   <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">File Info</p>
                   <h3 class="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">文件详情</h3>
                 </div>
-                <div class="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-slate-500">
-                  <div
-                    v-for="item in detailStats"
-                    :key="item.label"
-                    class="inline-flex items-center gap-2"
+                <div class="flex flex-wrap items-start gap-3 sm:flex-nowrap lg:justify-end">
+                  <button type="button" class="btn-secondary w-full sm:w-auto" @click="goBack">返回文件夹</button>
+                  <button
+                    v-if="canManageResourceDescriptions"
+                    type="button"
+                    class="btn-secondary w-full sm:w-auto"
+                    @click="openDescriptionEditor"
                   >
-                    <span>{{ item.label }}</span>
-                    <span class="max-w-[360px] truncate font-medium text-slate-900" :title="item.value">{{ item.value }}</span>
+                    编辑
+                  </button>
+                  <button
+                    v-if="canManageResourceDescriptions"
+                    type="button"
+                    class="btn-secondary w-full text-rose-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 sm:w-auto"
+                    @click="openDeleteDialog"
+                  >
+                    删除
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-[transform,background-color,border-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-[#fafafa] hover:text-slate-900 hover:shadow-sm hover:shadow-slate-950/[0.08]"
+                    aria-label="反馈文件"
+                    @click="openFeedbackModal"
+                  >
+                    <Flag class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-[transform,background-color,border-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-[#fafafa] hover:text-slate-900 hover:shadow-sm hover:shadow-slate-950/[0.08]"
+                    aria-label="下载文件"
+                    @click="downloadFile"
+                  >
+                    <Download class="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div class="min-w-0 space-y-3">
+                <div class="grid gap-x-8 gap-y-3 lg:grid-cols-2">
+                  <div
+                    v-for="item in primaryDetailRows"
+                    :key="item.label"
+                    class="grid min-w-0 grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-3 text-sm"
+                  >
+                    <span class="text-slate-500">{{ item.label }}</span>
+                    <span
+                      class="min-w-0 truncate font-medium text-slate-900"
+                      :title="item.value"
+                    >
+                      {{ item.value }}
+                    </span>
+                  </div>
+                </div>
+                <div class="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    v-for="item in secondaryDetailRows"
+                    :key="item.label"
+                    class="grid min-w-0 grid-cols-[88px_minmax(0,1fr)] items-baseline gap-x-3 text-sm"
+                  >
+                    <span class="text-slate-500">{{ item.label }}</span>
+                    <span
+                      class="min-w-0 truncate font-medium text-slate-900"
+                      :title="item.value"
+                    >
+                      {{ item.value }}
+                    </span>
                   </div>
                 </div>
               </div>
-              <div class="flex shrink-0 items-start gap-3">
-                <button type="button" class="btn-secondary" @click="goBack">返回文件夹</button>
-                <button
-                  v-if="canManageResourceDescriptions"
-                  type="button"
-                  class="btn-secondary"
-                  @click="openDescriptionEditor"
-                >
-                  编辑
-                </button>
-                <button
-                  v-if="canManageResourceDescriptions"
-                  type="button"
-                  class="btn-secondary text-rose-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
-                  @click="openDeleteDialog"
-                >
-                  删除
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
-                  aria-label="反馈文件"
-                  @click="openFeedbackModal"
-                >
-                  <Flag class="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-                  aria-label="下载文件"
-                  @click="downloadFile"
-                >
-                  <Download class="h-4 w-4" />
-                </button>
-              </div>
             </div>
 
-            <div class="mt-4 rounded-3xl border border-slate-200 bg-white px-5 py-5">
+            <div class="mt-4 rounded-3xl border border-slate-200 bg-white px-4 py-4 sm:px-5 sm:py-5">
               <div
                 v-if="descriptionHTML"
                 class="markdown-content"

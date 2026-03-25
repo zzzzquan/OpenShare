@@ -1,23 +1,29 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { Search } from "lucide-vue-next";
+import { computed } from "vue";
+import { Search, X } from "lucide-vue-next";
 
 const props = withDefaults(
   defineProps<{
     embedded?: boolean;
     loading?: boolean;
+    modelValue?: string;
   }>(),
   {
     embedded: false,
     loading: false,
+    modelValue: "",
   },
 );
 const emit = defineEmits<{
   search: [keyword: string];
   clear: [];
+  "update:modelValue": [value: string];
 }>();
 
-const keyword = ref("");
+const keyword = computed({
+  get: () => props.modelValue,
+  set: (value: string) => emit("update:modelValue", value),
+});
 const canSearch = computed(() => keyword.value.trim().length > 0);
 
 async function submitSearch() {
@@ -44,8 +50,17 @@ function clearSearch() {
               v-model="keyword"
               type="text"
               placeholder="在该目录下搜索文件/文件夹"
-              class="h-14 w-full rounded-lg border border-slate-300 bg-white pl-14 pr-5 text-[15px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-500 dark:focus:ring-slate-800"
+              class="h-14 w-full rounded-lg border border-slate-300 bg-white pl-14 pr-14 text-[15px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-slate-500 dark:focus:ring-slate-800"
             />
+            <button
+              v-if="keyword"
+              type="button"
+              class="absolute right-4 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              aria-label="清除搜索"
+              @click="clearSearch"
+            >
+              <X class="h-4 w-4" />
+            </button>
           </label>
 
           <button
@@ -59,14 +74,6 @@ function clearSearch() {
             :disabled="!canSearch || props.loading"
           >
             {{ props.loading ? "搜索中…" : "搜索" }}
-          </button>
-          <button
-            v-if="keyword"
-            type="button"
-            class="h-11 rounded-lg px-5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 xl:shrink-0"
-            @click="clearSearch"
-          >
-            清除
           </button>
         </form>
 

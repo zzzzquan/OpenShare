@@ -29,8 +29,8 @@ withDefaults(
 </script>
 
 <template>
-  <article class="panel group p-5 transition hover:border-slate-300 dark:hover:border-slate-700">
-    <div class="flex gap-4">
+  <article class="panel group p-4 sm:p-5 transition hover:border-slate-300 dark:hover:border-slate-700">
+    <div class="flex flex-col gap-4 sm:flex-row">
       <div class="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg border border-slate-200 bg-[#fafafa] text-slate-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-400">
         <FileText class="h-5 w-5" />
         <span class="mt-1 text-[10px] font-semibold tracking-[0.08em] text-slate-400">
@@ -62,13 +62,13 @@ withDefaults(
           <span v-if="updatedAt">{{ updatedAt }}</span>
           <span v-if="uploader">{{ uploader }}</span>
         </div>
-        <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
           <div class="min-w-0 text-sm text-slate-500 dark:text-slate-400">
             <span v-if="source" class="truncate">{{ source }}</span>
             <span v-else>暂无来源信息</span>
           </div>
 
-          <a :href="actionHref || undefined" class="btn-primary">
+          <a :href="actionHref || undefined" class="btn-primary w-full justify-center sm:w-auto">
             {{ actionText }}
           </a>
         </div>

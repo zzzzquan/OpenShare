@@ -6,6 +6,7 @@
   :root {
     color: #0f172a;
     background: #fafafa;
+    color-scheme: only light;
     font-family:
       "SF Pro Display",
       "SF Pro Text",
@@ -23,7 +24,7 @@
 
   html {
     background: #fafafa;
-    color-scheme: light;
+    color-scheme: only light;
     scrollbar-gutter: stable;
   }
 
@@ -37,6 +38,7 @@
     min-height: 100vh;
     background: #fafafa;
     color: #0f172a;
+    color-scheme: only light;
   }
 
   button,
@@ -53,18 +55,6 @@
 
   ::selection {
     background: rgba(37, 99, 235, 0.14);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    html {
-      background: #020617;
-      color-scheme: dark;
-    }
-
-    body {
-      background: #020617;
-      color: #e2e8f0;
-    }
   }
 }
 
@@ -98,7 +88,7 @@
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-[transform,background-color,border-color,box-shadow,opacity] duration-200 hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-sm hover:shadow-slate-950/[0.08] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+    @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-[transform,background-color,border-color,box-shadow,opacity] duration-200 hover:-translate-y-0.5 hover:bg-[#fafafa] hover:shadow-sm hover:shadow-slate-950/[0.08] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
   .btn-danger {

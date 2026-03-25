@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"openshare/backend/internal/model"
 	"openshare/backend/internal/repository"
 	"openshare/backend/internal/storage"
 )
@@ -38,6 +39,8 @@ type PublicFileDetail struct {
 	ID            string    `json:"id"`
 	Title         string    `json:"title"`
 	Extension     string    `json:"extension"`
+	FolderID      string    `json:"folder_id"`
+	Path          string    `json:"path"`
 	Description   string    `json:"description"`
 	OriginalName  string    `json:"original_name"`
 	MimeType      string    `json:"mime_type"`
@@ -111,10 +114,17 @@ func (s *PublicDownloadService) GetFileDetail(ctx context.Context, fileID string
 		return nil, ErrDownloadFileNotFound
 	}
 
+	fullPath, err := s.buildFilePath(ctx, file)
+	if err != nil {
+		return nil, fmt.Errorf("build public file path: %w", err)
+	}
+
 	return &PublicFileDetail{
 		ID:            file.ID,
 		Title:         file.Title,
 		Extension:     file.Extension,
+		FolderID:      strings.TrimSpace(optionalString(file.FolderID)),
+		Path:          fullPath,
 		Description:   file.Description,
 		OriginalName:  file.OriginalName,
 		MimeType:      file.MimeType,
@@ -122,6 +132,69 @@ func (s *PublicDownloadService) GetFileDetail(ctx context.Context, fileID string
 		UploadedAt:    file.CreatedAt,
 		DownloadCount: file.DownloadCount,
 	}, nil
+}
+
+func (s *PublicDownloadService) buildFilePath(ctx context.Context, file *model.File) (string, error) {
+	if file.FolderID == nil || strings.TrimSpace(*file.FolderID) == "" {
+		return "主页根目录", nil
+	}
+
+	folderIDs := make([]string, 0, 8)
+	seen := make(map[string]struct{}, 8)
+	currentID := strings.TrimSpace(*file.FolderID)
+
+	for currentID != "" {
+		if _, ok := seen[currentID]; ok {
+			break
+		}
+		seen[currentID] = struct{}{}
+		folderIDs = append(folderIDs, currentID)
+
+		folders, err := s.repository.ListActiveFoldersByIDs(ctx, []string{currentID})
+		if err != nil {
+			return "", err
+		}
+		if len(folders) == 0 || folders[0].ParentID == nil {
+			break
+		}
+		currentID = strings.TrimSpace(*folders[0].ParentID)
+	}
+
+	folders, err := s.repository.ListActiveFoldersByIDs(ctx, folderIDs)
+	if err != nil {
+		return "", err
+	}
+
+	byID := make(map[string]repository.ActiveFolderNode, len(folders))
+	for _, folder := range folders {
+		byID[folder.ID] = folder
+	}
+
+	segments := make([]string, 0, len(folderIDs)+1)
+	currentID = strings.TrimSpace(*file.FolderID)
+	for currentID != "" {
+		folder, ok := byID[currentID]
+		if !ok {
+			break
+		}
+		segments = append([]string{folder.Name}, segments...)
+		if folder.ParentID == nil {
+			break
+		}
+		currentID = strings.TrimSpace(*folder.ParentID)
+	}
+
+	if len(segments) == 0 {
+		return "主页根目录", nil
+	}
+	return strings.Join(segments, " / "), nil
+}
+
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func (s *PublicDownloadService) PrepareBatchDownload(ctx context.Context, fileIDs []string) ([]BatchDownloadFile, error) {

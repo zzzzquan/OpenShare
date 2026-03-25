@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"openshare/backend/internal/config"
-	"openshare/backend/internal/model"
 	"openshare/backend/internal/repository"
-	"openshare/backend/internal/search"
 )
 
 // ---------------------------------------------------------------------------
@@ -28,16 +28,18 @@ const (
 	defaultSearchPageSize = 20
 	maxSearchPageSize     = 100
 	maxSearchQueryLength  = 200
+	maxSearchTerms        = 8
+	maxCandidateLimit     = 300
 )
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
-// SearchService implements the public search use-case:
-//   - keyword search (FTS5 with LIKE fallback)
-//   - folder-scoped search
-//   - relevance + download_count ordering
+// SearchService implements public search over ordinary resource tables:
+//   - parameterized LIKE recall over files/folders
+//   - optional folder-scoped search
+//   - application-side relevance ranking
 type SearchService struct {
 	searchRepo *repository.SearchRepository
 	settings   *SystemSettingService
@@ -95,56 +97,35 @@ func (s *SearchService) Search(ctx context.Context, input SearchInput) (*SearchR
 		return nil, err
 	}
 
-	keyword := strings.TrimSpace(input.Keyword)
-	if len([]rune(keyword)) > maxSearchQueryLength {
-		return nil, ErrSearchQueryTooLong
+	normalizedQuery, err := normalizeSearchKeyword(input.Keyword, policy.EnableFuzzyMatch)
+	if err != nil {
+		return nil, err
 	}
 
-	// Sanitize keyword for FTS5
-	fts5Query, hasFTS := search.SanitizeQuery(keyword)
-
-	if !hasFTS {
-		return nil, ErrSearchQueryEmpty
-	}
+	scopeFolderID := strings.TrimSpace(input.FolderID)
 
 	// --- 2. Resolve folder scope -----------------------------------------
 	var scopeFolderIDs []string
-	if trimmed := strings.TrimSpace(input.FolderID); trimmed != "" {
+	if scopeFolderID != "" {
 		if !policy.EnableFolderScope {
 			return nil, ErrSearchInvalidInput
 		}
-		ids, err := s.searchRepo.GetDescendantFolderIDs(ctx, trimmed)
+		ids, err := s.searchRepo.GetDescendantFolderIDs(ctx, scopeFolderID)
 		if err != nil {
 			return nil, fmt.Errorf("resolve folder scope: %w", err)
 		}
 		scopeFolderIDs = ids
 	}
 
-	offset := (page - 1) * pageSize
-
-	// --- 3. FTS5 primary search ------------------------------------------
-	rows, total, err := s.searchRepo.Search(ctx, repository.SearchQuery{
-		FTS5Query:      fts5Query,
+	// --- 3. Recall candidates from ordinary tables -----------------------
+	candidates, total, err := s.searchRepo.SearchCandidates(ctx, repository.SearchCandidateQuery{
+		FullQuery:      normalizedQuery.Full,
+		Terms:          normalizedQuery.Terms,
 		ScopeFolderIDs: scopeFolderIDs,
-		Offset:         offset,
-		Limit:          pageSize,
+		Limit:          searchCandidateLimit(policy.ResultWindow, page, pageSize),
 	})
 	if err != nil {
-		ftsErr := err
-		// FTS5 may be unavailable or broken on some SQLite builds.
-		// Fall back to LIKE search instead of failing the whole request.
-		rows, total, err = s.searchRepo.SearchWithLike(ctx, strings.ToLower(keyword), scopeFolderIDs, offset, pageSize)
-		if err != nil {
-			return nil, fmt.Errorf("fts5 search: %w; like fallback: %w", ftsErr, err)
-		}
-	}
-
-	// --- 4. LIKE fallback if FTS5 returned nothing -----------------------
-	if total == 0 && hasFTS && policy.EnableFuzzyMatch {
-		rows, total, err = s.searchRepo.SearchWithLike(ctx, strings.ToLower(keyword), scopeFolderIDs, offset, pageSize)
-		if err != nil {
-			return nil, fmt.Errorf("like search fallback: %w", err)
-		}
+		return nil, fmt.Errorf("search candidates: %w", err)
 	}
 
 	if total == 0 {
@@ -156,10 +137,26 @@ func (s *SearchService) Search(ctx context.Context, input SearchInput) (*SearchR
 		}, nil
 	}
 
-	// --- 5. Hydrate results with metadata --------------------------------
-	items, err := s.hydrateResults(ctx, rows)
-	if err != nil {
-		return nil, fmt.Errorf("hydrate results: %w", err)
+	// --- 4. Rank, paginate, and shape response ---------------------------
+	ranked := rankSearchCandidates(candidates, normalizedQuery, scopeFolderID)
+	offset := (page - 1) * pageSize
+	if offset >= len(ranked) {
+		return &SearchResult{
+			Items:    []SearchResultItem{},
+			Page:     page,
+			PageSize: pageSize,
+			Total:    total,
+		}, nil
+	}
+
+	end := offset + pageSize
+	if end > len(ranked) {
+		end = len(ranked)
+	}
+
+	items := make([]SearchResultItem, 0, end-offset)
+	for _, candidate := range ranked[offset:end] {
+		items = append(items, candidateToResultItem(candidate.Candidate))
 	}
 
 	return &SearchResult{
@@ -183,87 +180,258 @@ func (s *SearchService) searchPolicy(ctx context.Context) SearchPolicy {
 }
 
 // ---------------------------------------------------------------------------
-// Result hydration
+// Ranking helpers
 // ---------------------------------------------------------------------------
 
-func (s *SearchService) hydrateResults(ctx context.Context, rows []repository.SearchResultRow) ([]SearchResultItem, error) {
-	var fileIDs, folderIDs []string
-	for _, row := range rows {
-		switch row.EntityType {
-		case "file":
-			fileIDs = append(fileIDs, row.EntityID)
-		case "folder":
-			folderIDs = append(folderIDs, row.EntityID)
-		}
-	}
-
-	// Load metadata
-	fileMap := make(map[string]*fileHydrated)
-	if len(fileIDs) > 0 {
-		files, err := s.searchRepo.GetFilesByIDs(ctx, fileIDs)
-		if err != nil {
-			return nil, err
-		}
-		for i := range files {
-			f := files[i]
-			fileMap[f.ID] = &fileHydrated{file: &f}
-		}
-	}
-
-	folderMap := make(map[string]*folderHydrated)
-	if len(folderIDs) > 0 {
-		folders, err := s.searchRepo.GetFoldersByIDs(ctx, folderIDs)
-		if err != nil {
-			return nil, err
-		}
-		for i := range folders {
-			f := folders[i]
-			folderMap[f.ID] = &folderHydrated{folder: &f}
-		}
-	}
-
-	// Assemble in original order
-	items := make([]SearchResultItem, 0, len(rows))
-	for _, row := range rows {
-		switch row.EntityType {
-		case "file":
-			h, ok := fileMap[row.EntityID]
-			if !ok {
-				continue
-			}
-			t := h.file.CreatedAt
-			items = append(items, SearchResultItem{
-				EntityType:    "file",
-				ID:            h.file.ID,
-				Name:          h.file.Title,
-				OriginalName:  h.file.OriginalName,
-				Extension:     h.file.Extension,
-				Size:          h.file.Size,
-				DownloadCount: h.file.DownloadCount,
-				UploadedAt:    &t,
-			})
-		case "folder":
-			h, ok := folderMap[row.EntityID]
-			if !ok {
-				continue
-			}
-			items = append(items, SearchResultItem{
-				EntityType: "folder",
-				ID:         h.folder.ID,
-				Name:       h.folder.Name,
-			})
-		}
-	}
-
-	return items, nil
+type normalizedSearchQuery struct {
+	Full  string
+	Terms []string
 }
 
-type fileHydrated struct {
-	file *model.File
+type scoredSearchCandidate struct {
+	Candidate repository.SearchCandidate
+	Score     int
 }
 
-type folderHydrated struct {
-	folder *model.Folder
+func normalizeSearchKeyword(raw string, enableFuzzy bool) (normalizedSearchQuery, error) {
+	trimmed := strings.TrimSpace(raw)
+	if len([]rune(trimmed)) > maxSearchQueryLength {
+		return normalizedSearchQuery{}, ErrSearchQueryTooLong
+	}
+
+	full := collapseSearchWhitespace(strings.ToLower(trimmed))
+	if full == "" {
+		return normalizedSearchQuery{}, ErrSearchQueryEmpty
+	}
+
+	terms := []string{full}
+	if enableFuzzy {
+		terms = splitSearchTerms(full)
+		if len(terms) == 0 {
+			terms = []string{full}
+		}
+	}
+
+	return normalizedSearchQuery{
+		Full:  full,
+		Terms: terms,
+	}, nil
+}
+
+func splitSearchTerms(full string) []string {
+	fields := strings.Fields(full)
+	terms := make([]string, 0, len(fields))
+	seen := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		term := strings.TrimSpace(field)
+		if term == "" {
+			continue
+		}
+		if _, exists := seen[term]; exists {
+			continue
+		}
+		seen[term] = struct{}{}
+		terms = append(terms, term)
+		if len(terms) >= maxSearchTerms {
+			break
+		}
+	}
+	return terms
+}
+
+func collapseSearchWhitespace(value string) string {
+	var builder strings.Builder
+	builder.Grow(len(value))
+
+	lastWasSpace := true
+	for _, r := range value {
+		if unicode.IsSpace(r) {
+			if !lastWasSpace {
+				builder.WriteByte(' ')
+			}
+			lastWasSpace = true
+			continue
+		}
+		builder.WriteRune(r)
+		lastWasSpace = false
+	}
+
+	return strings.TrimSpace(builder.String())
+}
+
+func searchCandidateLimit(resultWindow, page, pageSize int) int {
+	candidateLimit := page * pageSize * 4
+	if candidateLimit < 120 {
+		candidateLimit = 120
+	}
+	if resultWindow > 0 && resultWindow*3 > candidateLimit {
+		candidateLimit = resultWindow * 3
+	}
+	if candidateLimit > maxCandidateLimit {
+		candidateLimit = maxCandidateLimit
+	}
+	return candidateLimit
+}
+
+func rankSearchCandidates(candidates []repository.SearchCandidate, query normalizedSearchQuery, scopeFolderID string) []scoredSearchCandidate {
+	ranked := make([]scoredSearchCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		ranked = append(ranked, scoredSearchCandidate{
+			Candidate: candidate,
+			Score:     scoreSearchCandidate(candidate, query, scopeFolderID),
+		})
+	}
+
+	sort.SliceStable(ranked, func(i, j int) bool {
+		left := ranked[i]
+		right := ranked[j]
+
+		if left.Score != right.Score {
+			return left.Score > right.Score
+		}
+		if left.Candidate.DownloadCount != right.Candidate.DownloadCount {
+			return left.Candidate.DownloadCount > right.Candidate.DownloadCount
+		}
+		if !left.Candidate.UpdatedAt.Equal(right.Candidate.UpdatedAt) {
+			return left.Candidate.UpdatedAt.After(right.Candidate.UpdatedAt)
+		}
+		if left.Candidate.EntityType != right.Candidate.EntityType {
+			return left.Candidate.EntityType == "folder"
+		}
+
+		leftName := searchDisplayName(left.Candidate)
+		rightName := searchDisplayName(right.Candidate)
+		if leftName != rightName {
+			return leftName < rightName
+		}
+		return left.Candidate.ID < right.Candidate.ID
+	})
+
+	return ranked
+}
+
+func scoreSearchCandidate(candidate repository.SearchCandidate, query normalizedSearchQuery, scopeFolderID string) int {
+	primaryFields := []string{normalizeSearchField(candidate.Name)}
+	if original := normalizeSearchField(candidate.OriginalName); original != "" {
+		primaryFields = append(primaryFields, original)
+	}
+	description := normalizeSearchField(candidate.Description)
+
+	score := bestFieldMatchScore(query.Full, primaryFields, 1200, 920, 720)
+	if description != "" && strings.Contains(description, query.Full) {
+		score += 120
+	}
+
+	if len(query.Terms) > 1 {
+		for _, term := range query.Terms {
+			score += bestFieldMatchScore(term, primaryFields, 200, 150, 90)
+			if description != "" && strings.Contains(description, term) {
+				score += 25
+			}
+		}
+	}
+
+	score += scopeBias(candidate, scopeFolderID)
+	score += downloadCountBias(candidate.DownloadCount)
+	return score
+}
+
+func bestFieldMatchScore(term string, fields []string, exactScore, prefixScore, containsScore int) int {
+	if term == "" {
+		return 0
+	}
+
+	best := 0
+	for _, field := range fields {
+		switch {
+		case field == term:
+			if exactScore > best {
+				best = exactScore
+			}
+		case strings.HasPrefix(field, term):
+			if prefixScore > best {
+				best = prefixScore
+			}
+		case strings.Contains(field, term):
+			if containsScore > best {
+				best = containsScore
+			}
+		}
+	}
+	return best
+}
+
+func normalizeSearchField(value string) string {
+	return collapseSearchWhitespace(strings.ToLower(strings.TrimSpace(value)))
+}
+
+func scopeBias(candidate repository.SearchCandidate, scopeFolderID string) int {
+	if scopeFolderID == "" {
+		return 0
+	}
+
+	switch candidate.EntityType {
+	case "file":
+		if candidate.FolderID != nil && *candidate.FolderID == scopeFolderID {
+			return 120
+		}
+	case "folder":
+		if candidate.ID == scopeFolderID {
+			return 100
+		}
+		if candidate.ParentID != nil && *candidate.ParentID == scopeFolderID {
+			return 80
+		}
+	}
+
+	return 0
+}
+
+func downloadCountBias(downloadCount int64) int {
+	switch {
+	case downloadCount >= 100:
+		return 20
+	case downloadCount >= 50:
+		return 16
+	case downloadCount >= 20:
+		return 12
+	case downloadCount >= 10:
+		return 8
+	case downloadCount > 0:
+		return int(downloadCount)
+	default:
+		return 0
+	}
+}
+
+func searchDisplayName(candidate repository.SearchCandidate) string {
+	if candidate.EntityType == "file" && strings.TrimSpace(candidate.OriginalName) != "" {
+		return strings.ToLower(candidate.OriginalName)
+	}
+	return strings.ToLower(candidate.Name)
+}
+
+func candidateToResultItem(candidate repository.SearchCandidate) SearchResultItem {
+	switch candidate.EntityType {
+	case "file":
+		uploadedAt := candidate.CreatedAt
+		return SearchResultItem{
+			EntityType:    "file",
+			ID:            candidate.ID,
+			Name:          candidate.Name,
+			OriginalName:  candidate.OriginalName,
+			Extension:     candidate.Extension,
+			Size:          candidate.Size,
+			DownloadCount: candidate.DownloadCount,
+			UploadedAt:    &uploadedAt,
+		}
+	default:
+		return SearchResultItem{
+			EntityType: "folder",
+			ID:         candidate.ID,
+			Name:       candidate.Name,
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -97,13 +97,21 @@ func TestPublicFileDetailReturnsMetadata(t *testing.T) {
 	var response struct {
 		ID          string `json:"id"`
 		Extension   string `json:"extension"`
+		FolderID    string `json:"folder_id"`
 		Description string `json:"description"`
+		Path        string `json:"path"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode detail response: %v", err)
 	}
 	if response.ID != file.ID || response.Description != "detail" || response.Extension != file.Extension {
 		t.Fatalf("unexpected detail response: %+v", response)
+	}
+	if response.Path != "主页根目录" {
+		t.Fatalf("expected file path %q, got %q", "主页根目录", response.Path)
+	}
+	if response.FolderID != "" {
+		t.Fatalf("expected empty folder_id for root file, got %q", response.FolderID)
 	}
 }
 

@@ -109,11 +109,11 @@ func Default() Config {
 			Name:            "openshare_session",
 			Secret:          "replace-this-in-local-config",
 			Path:            "/",
-			MaxAgeSeconds:   86400, // 24h
+			MaxAgeSeconds:   604800, // 7d
 			Secure:          false,
 			HTTPOnly:        true,
 			SameSite:        "lax",
-			RenewWindowSecs: 21600, // 6h
+			RenewWindowSecs: 604800, // 7d sliding window
 		},
 		RateLimit: RateLimitConfig{
 			Upload: RateLimitRule{Enabled: true, Limit: 10, Window: 60},

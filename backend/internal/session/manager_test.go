@@ -93,6 +93,43 @@ func TestManagerRenewsNearExpiry(t *testing.T) {
 	}
 }
 
+func TestManagerRenewsWhenWindowCoversFullSessionLifetime(t *testing.T) {
+	db := newSessionTestDB(t)
+	admin := createActiveAdmin(t, db, "carol")
+	baseTime := time.Date(2026, 3, 11, 10, 0, 0, 0, time.UTC)
+
+	manager := NewManager(db, config.SessionConfig{
+		Name:            "openshare_session",
+		Secret:          "test-secret",
+		Path:            "/",
+		MaxAgeSeconds:   7 * 24 * 60 * 60,
+		HTTPOnly:        true,
+		Secure:          false,
+		SameSite:        "lax",
+		RenewWindowSecs: 7 * 24 * 60 * 60,
+	}, repository.NewAdminSessionRepository())
+	manager.clock = fakeClock{now: baseTime}
+
+	cookieValue, identity, err := manager.Create(context.Background(), admin)
+	if err != nil {
+		t.Fatalf("create session failed: %v", err)
+	}
+
+	manager.clock = fakeClock{now: baseTime.Add(12 * time.Hour)}
+
+	result, err := manager.Resolve(context.Background(), cookieValue)
+	if err != nil {
+		t.Fatalf("resolve session failed: %v", err)
+	}
+
+	if !result.Renewed {
+		t.Fatal("expected session renewal when renew window covers the full lifetime")
+	}
+	if !result.Identity.ExpiresAt.After(identity.ExpiresAt) {
+		t.Fatal("expected renewed expiry to move forward")
+	}
+}
+
 func TestWriteAndClearCookie(t *testing.T) {
 	db := newSessionTestDB(t)
 	manager := NewManager(db, config.SessionConfig{

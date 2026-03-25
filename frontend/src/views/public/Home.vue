@@ -132,6 +132,7 @@ const latestItems = ref<LatestItem[]>([]);
 const sidebarDetailModal = ref<SidebarDetailModalState | null>(null);
 const viewMode = ref<"cards" | "table">("cards");
 const sortMode = ref<"name" | "download" | "format">("name");
+const sortDirection = ref<"asc" | "desc">("desc");
 const sortMenuOpen = ref(false);
 const viewMenuOpen = ref(false);
 const transientWarning = ref("");
@@ -167,6 +168,7 @@ const actionError = ref("");
 const batchDownloadSubmitting = ref(false);
 const folders = ref<PublicFolderItem[]>([]);
 const files = ref<PublicFileItem[]>([]);
+const searchInput = ref("");
 const searchKeyword = ref("");
 const searchLoading = ref(false);
 const searchError = ref("");
@@ -248,7 +250,7 @@ const displayedRows = computed<DirectoryRow[]>(() => (searchKeyword.value ? sear
 
 const sortedRows = computed(() => {
   const next = [...displayedRows.value];
-  next.sort((left, right) => compareRows(left, right, sortMode.value));
+  next.sort((left, right) => compareRows(left, right, sortMode.value, sortDirection.value));
   return next;
 });
 const selectedRows = computed(() => sortedRows.value.filter((row) => selectedResourceKeys.value.includes(selectionKey(row))));
@@ -278,8 +280,9 @@ const currentFolderStats = computed(() => {
     { label: "更新时间", value: formatDateTime(currentFolderDetail.value.updated_at) },
   ];
 });
-
 const canGoUp = computed(() => currentFolderID.value.length > 0);
+const backButtonLabel = computed(() => (searchKeyword.value ? "返回所在目录" : "返回上一级"));
+const canUseBackButton = computed(() => searchKeyword.value.length > 0 || canGoUp.value);
 
 function downloadResource(row: DirectoryRow) {
   actionMessage.value = "";
@@ -414,6 +417,10 @@ onMounted(async () => {
   const storedSortMode = window.localStorage.getItem("public-home-sort-mode");
   if (storedSortMode === "name" || storedSortMode === "download" || storedSortMode === "format") {
     sortMode.value = storedSortMode;
+  }
+  const storedSortDirection = window.localStorage.getItem("public-home-sort-direction");
+  if (storedSortDirection === "asc" || storedSortDirection === "desc") {
+    sortDirection.value = storedSortDirection;
   }
   currentReceiptCode.value = await syncSessionReceiptCode();
   await Promise.all([loadAnnouncements(), loadHotDownloads(), loadLatestTitles(), loadDirectory(), loadAdminPermission()]);
@@ -626,6 +633,10 @@ function openRoot() {
 }
 
 function goUpOneLevel() {
+  if (searchKeyword.value) {
+    clearSearchState();
+    return;
+  }
   if (!currentFolderID.value) {
     return;
   }
@@ -644,6 +655,9 @@ function openFolder(folderID: string) {
 }
 
 function openFile(fileID: string) {
+  if (searchKeyword.value) {
+    clearSearchState();
+  }
   void router.push({ name: "public-file-detail", params: { fileID } });
 }
 
@@ -718,12 +732,19 @@ async function confirmDeleteResource() {
 }
 
 async function runSearch(keyword: string) {
-  searchKeyword.value = keyword;
+  const normalizedKeyword = keyword.trim();
+  if (!normalizedKeyword) {
+    clearSearchState();
+    return;
+  }
+
+  searchInput.value = normalizedKeyword;
+  searchKeyword.value = normalizedKeyword;
   searchLoading.value = true;
   searchError.value = "";
   try {
     const query = new URLSearchParams({
-      q: keyword,
+      q: normalizedKeyword,
       page: "1",
       page_size: "50",
     });
@@ -754,6 +775,7 @@ async function runSearch(keyword: string) {
 }
 
 function clearSearchState() {
+  searchInput.value = "";
   searchKeyword.value = "";
   searchLoading.value = false;
   searchError.value = "";
@@ -974,8 +996,13 @@ watch(sortedRows, (rows) => {
 
 function setSortMode(mode: "name" | "download" | "format") {
   sortMode.value = mode;
-  sortMenuOpen.value = false;
   window.localStorage.setItem("public-home-sort-mode", mode);
+}
+
+function setSortDirection(direction: "asc" | "desc") {
+  sortDirection.value = direction;
+  sortMenuOpen.value = false;
+  window.localStorage.setItem("public-home-sort-direction", direction);
 }
 
 function sortModeLabel(mode: "name" | "download" | "format") {
@@ -987,6 +1014,10 @@ function sortModeLabel(mode: "name" | "download" | "format") {
     default:
       return "名称排序";
   }
+}
+
+function sortDirectionLabel(direction: "asc" | "desc") {
+  return direction === "asc" ? "升序" : "降序";
 }
 
 function viewModeLabel(mode: "cards" | "table") {
@@ -1142,24 +1173,33 @@ function fileIconComponent(extension: string) {
   return FileType2;
 }
 
-function compareRows(left: DirectoryRow, right: DirectoryRow, mode: "name" | "download" | "format") {
-  if (mode === "download") {
-    if (right.downloadCount !== left.downloadCount) {
-      return right.downloadCount - left.downloadCount;
-    }
-    return left.name.localeCompare(right.name, "zh-CN");
-  }
+function compareRows(
+  left: DirectoryRow,
+  right: DirectoryRow,
+  mode: "name" | "download" | "format",
+  direction: "asc" | "desc",
+) {
+  let result = 0;
 
-  if (mode === "format") {
+  if (mode === "download") {
+    if (left.downloadCount !== right.downloadCount) {
+      result = left.downloadCount - right.downloadCount;
+    } else {
+      result = left.name.localeCompare(right.name, "zh-CN");
+    }
+  } else if (mode === "format") {
     const leftRank = formatSortRank(left);
     const rightRank = formatSortRank(right);
     if (leftRank !== rightRank) {
-      return leftRank - rightRank;
+      result = leftRank - rightRank;
+    } else {
+      result = left.name.localeCompare(right.name, "zh-CN");
     }
-    return left.name.localeCompare(right.name, "zh-CN");
+  } else {
+    result = left.name.localeCompare(right.name, "zh-CN");
   }
 
-  return left.name.localeCompare(right.name, "zh-CN");
+  return direction === "asc" ? result : -result;
 }
 
 function formatSortRank(row: DirectoryRow) {
@@ -1201,13 +1241,14 @@ async function syncSessionReceiptCode() {
     </div>
   </Teleport>
 
-  <main class="app-container py-8 lg:py-10">
+  <main class="app-container py-6 sm:py-8 lg:py-10">
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_248px]">
       <section class="order-1 min-w-0">
         <div class="panel overflow-hidden">
-          <div class="border-b border-slate-200 px-5 py-3 sm:px-6 dark:border-slate-800">
+          <div class="border-b border-slate-200 px-4 py-3 sm:px-6 dark:border-slate-800">
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <div class="min-w-0 max-w-full overflow-x-auto">
+                <div class="flex min-w-max items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <button type="button" class="inline-flex items-center gap-2 rounded-full px-2 py-1 transition hover:bg-slate-100 hover:text-slate-900" @click="openRoot">
                   <Home class="h-4 w-4" />
                   <span>主页</span>
@@ -1222,13 +1263,20 @@ async function syncSessionReceiptCode() {
                     {{ item.name }}
                   </button>
                 </template>
+                </div>
               </div>
 
             </div>
           </div>
 
           <div>
-            <SearchSection embedded :loading="searchLoading" @search="runSearch" @clear="clearSearchState" />
+            <SearchSection
+              v-model="searchInput"
+              embedded
+              :loading="searchLoading"
+              @search="runSearch"
+              @clear="clearSearchState"
+            />
           </div>
 
           <p v-if="searchError" class="mx-5 mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 sm:mx-6">
@@ -1242,16 +1290,16 @@ async function syncSessionReceiptCode() {
             <span class="ml-2">共 {{ searchRows.length }} 条结果</span>
           </div>
 
-          <div class="px-5 pb-2 sm:px-6">
+          <div class="px-4 pb-2 sm:px-6">
             <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
               <button
                 type="button"
                 class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45"
-                :disabled="!canGoUp"
+                :disabled="!canUseBackButton"
                 @click="goUpOneLevel"
               >
                 <ChevronLeft class="h-4 w-4" />
-                返回上一级
+                {{ backButtonLabel }}
               </button>
 
               <button
@@ -1272,17 +1320,17 @@ async function syncSessionReceiptCode() {
                 {{ allVisibleRowsSelected ? "取消全选" : "全选" }}
               </button>
 
-              <div class="ml-auto flex flex-wrap items-center gap-3">
+              <div class="flex w-full flex-wrap items-center gap-3 sm:ml-auto sm:w-auto sm:justify-end">
               <div class="relative">
                 <button
                   type="button"
-                  class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                  class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:w-auto"
                   @click="sortMenuOpen = !sortMenuOpen; viewMenuOpen = false"
                 >
-                  {{ sortModeLabel(sortMode) }}
+                  {{ sortModeLabel(sortMode) }} · {{ sortDirectionLabel(sortDirection) }}
                   <ChevronRight class="h-4 w-4 rotate-90" />
                 </button>
-                <div v-if="sortMenuOpen" class="absolute left-0 top-full z-20 mt-2 min-w-[156px] rounded-2xl border border-slate-200 bg-white p-1 shadow-lg">
+                <div v-if="sortMenuOpen" class="absolute left-0 top-full z-20 mt-2 min-w-[176px] rounded-2xl border border-slate-200 bg-white p-1 shadow-lg">
                   <button
                     type="button"
                     class="block w-full rounded-xl px-3 py-2 text-left text-sm transition"
@@ -1307,13 +1355,30 @@ async function syncSessionReceiptCode() {
                   >
                     格式排序
                   </button>
+                  <div class="mx-2 my-1 border-t border-slate-100"></div>
+                  <button
+                    type="button"
+                    class="block w-full rounded-xl px-3 py-2 text-left text-sm transition"
+                    :class="sortDirection === 'desc' ? 'bg-slate-100 font-medium text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'"
+                    @click="setSortDirection('desc')"
+                  >
+                    降序
+                  </button>
+                  <button
+                    type="button"
+                    class="block w-full rounded-xl px-3 py-2 text-left text-sm transition"
+                    :class="sortDirection === 'asc' ? 'bg-slate-100 font-medium text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'"
+                    @click="setSortDirection('asc')"
+                  >
+                    升序
+                  </button>
                 </div>
               </div>
 
               <div class="relative">
                 <button
                   type="button"
-                  class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                  class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:w-auto"
                   @click="viewMenuOpen = !viewMenuOpen; sortMenuOpen = false"
                 >
                   <LayoutGrid v-if="viewMode === 'cards'" class="h-4 w-4" />
@@ -1346,19 +1411,19 @@ async function syncSessionReceiptCode() {
             </div>
           </div>
 
-          <p v-if="actionMessage" class="mx-5 mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 sm:mx-6">{{ actionMessage }}</p>
-          <p v-if="actionError" class="mx-5 mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 sm:mx-6">{{ actionError }}</p>
+          <p v-if="actionMessage" class="mx-4 mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 sm:mx-6">{{ actionMessage }}</p>
+          <p v-if="actionError" class="mx-4 mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 sm:mx-6">{{ actionError }}</p>
 
-          <div v-if="loading" class="px-5 py-8 text-sm text-slate-500 sm:px-6">加载中…</div>
-          <div v-else-if="error" class="px-5 py-8 text-sm text-rose-600 sm:px-6">{{ error }}</div>
-          <div v-else-if="sortedRows.length === 0" class="px-5 py-8 text-sm text-slate-500 sm:px-6">
+          <div v-if="loading" class="px-4 py-8 text-sm text-slate-500 sm:px-6">加载中…</div>
+          <div v-else-if="error" class="px-4 py-8 text-sm text-rose-600 sm:px-6">{{ error }}</div>
+          <div v-else-if="sortedRows.length === 0" class="px-4 py-8 text-sm text-slate-500 sm:px-6">
             {{ searchKeyword ? "没有找到匹配结果。" : "当前目录为空。" }}
           </div>
-          <div v-else-if="viewMode === 'cards'" class="grid gap-4 px-5 py-3 sm:grid-cols-2 sm:px-6 2xl:grid-cols-3">
+          <div v-else-if="viewMode === 'cards'" class="grid gap-4 px-4 py-3 xl:grid-cols-2 sm:px-6 2xl:grid-cols-3">
             <article
               v-for="row in sortedRows"
               :key="`${row.kind}-${row.id}`"
-              class="group relative flex h-[168px] cursor-pointer flex-col rounded-3xl border border-slate-200 bg-white px-5 pt-3.5 transition hover:border-slate-300 hover:shadow-sm"
+              class="group relative min-w-0 flex min-h-[168px] cursor-pointer flex-col rounded-3xl border border-slate-200 bg-white px-4 pt-3.5 transition hover:border-slate-300 hover:shadow-sm sm:px-5"
               @click="row.kind === 'folder' ? openFolder(row.id) : openFile(row.id)"
             >
               <div class="absolute right-5 top-4 z-10">
@@ -1383,7 +1448,7 @@ async function syncSessionReceiptCode() {
                 </div>
               </div>
 
-              <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
+              <div class="mt-3 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                 <template v-if="row.kind === 'file'">
                   <span class="inline-flex items-center gap-1.5">
                     <Download class="h-3.5 w-3.5" />
@@ -1399,9 +1464,9 @@ async function syncSessionReceiptCode() {
                   <span>{{ row.fileCount }} 个文件</span>
                   <span>{{ row.sizeText }}</span>
                 </template>
-                <span class="inline-flex items-center gap-1.5">
+                <span class="inline-flex min-w-0 max-w-full items-center gap-1.5">
                   <Clock3 class="h-3.5 w-3.5" />
-                  {{ row.updatedAt }}
+                  <span class="truncate">{{ row.updatedAt }}</span>
                 </span>
               </div>
 
@@ -1423,14 +1488,14 @@ async function syncSessionReceiptCode() {
               </div>
             </article>
           </div>
-          <div v-else class="px-5 py-5 sm:px-6">
-            <table class="data-table">
+          <div v-else class="px-4 py-5 sm:px-6">
+            <table class="data-table table-fixed">
               <thead>
                 <tr>
                   <th class="w-10"></th>
                   <th class="text-left">名称</th>
-                  <th class="w-[160px] text-right">大小</th>
-                  <th class="w-[220px] text-right">修改时间</th>
+                  <th class="w-[120px] text-right">大小</th>
+                  <th class="hidden w-[220px] text-right xl:table-cell">修改时间</th>
                 </tr>
               </thead>
               <tbody>
@@ -1454,26 +1519,26 @@ async function syncSessionReceiptCode() {
                       class="flex min-w-0 items-center gap-3 text-left"
                     >
                       <Folder class="h-5 w-5 shrink-0 text-blue-500" />
-                      <span class="truncate text-slate-900 dark:text-slate-100">{{ row.name }}</span>
+                      <span class="truncate text-slate-900 dark:text-slate-100" :title="row.name">{{ row.name }}</span>
                     </div>
                     <div
                       v-else
                       class="flex min-w-0 items-center gap-3 text-left"
                     >
                       <component :is="fileIconComponent(row.extension)" class="h-5 w-5 shrink-0 text-slate-500" />
-                      <span class="truncate text-slate-900 dark:text-slate-100">{{ row.name }}</span>
+                      <span class="truncate text-slate-900 dark:text-slate-100" :title="row.name">{{ row.name }}</span>
                     </div>
                   </td>
-                  <td class="w-[160px] text-right tabular-nums">{{ row.sizeText }}</td>
-                  <td class="w-[220px] text-right tabular-nums">{{ row.updatedAt }}</td>
+                  <td class="w-[120px] whitespace-nowrap text-right tabular-nums">{{ row.sizeText }}</td>
+                  <td class="hidden w-[220px] whitespace-nowrap text-right tabular-nums xl:table-cell">{{ row.updatedAt }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div v-if="currentFolderDetail" class="border-t border-slate-200 px-5 py-5 sm:px-6">
+          <div v-if="currentFolderDetail" class="border-t border-slate-200 px-4 py-5 sm:px-6">
             <section>
-              <div class="flex items-start justify-between gap-4">
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div class="min-w-0 flex-1 space-y-3">
                   <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Folder Info</p>
                   <div class="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-slate-500">
@@ -1487,7 +1552,7 @@ async function syncSessionReceiptCode() {
                     </div>
                   </div>
                 </div>
-                <div class="flex shrink-0 items-start gap-3">
+                <div class="flex flex-wrap items-start gap-3">
                   <button
                     v-if="canManageResourceDescriptions"
                     type="button"
@@ -1506,7 +1571,7 @@ async function syncSessionReceiptCode() {
                   </button>
                   <button
                     type="button"
-                    class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                    class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-[transform,background-color,border-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-[#fafafa] hover:text-slate-900 hover:shadow-sm hover:shadow-slate-950/[0.08]"
                     aria-label="反馈文件夹"
                     @click="openFeedbackModal({ id: currentFolderDetail.id, type: 'folder', name: currentFolderDetail.name })"
                   >
@@ -1514,7 +1579,7 @@ async function syncSessionReceiptCode() {
                   </button>
                   <button
                     type="button"
-                    class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                    class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition-[transform,background-color,border-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-[#fafafa] hover:text-slate-900 hover:shadow-sm hover:shadow-slate-950/[0.08]"
                     aria-label="下载文件夹"
                     @click="downloadCurrentFolder"
                   >
@@ -1523,7 +1588,7 @@ async function syncSessionReceiptCode() {
                 </div>
               </div>
 
-              <div class="mt-4 rounded-3xl border border-slate-200 bg-white px-5 py-5">
+              <div class="mt-4 rounded-3xl border border-slate-200 bg-white px-4 py-4 sm:px-5 sm:py-5">
                 <div
                   v-if="currentFolderDescriptionHTML"
                   class="markdown-content"
@@ -1537,7 +1602,7 @@ async function syncSessionReceiptCode() {
         </div>
       </section>
 
-      <aside class="order-2 space-y-4">
+      <aside class="order-2 min-w-0 space-y-4">
         <InfoPanelCard
           title="公告栏"
           :items="recentAnnouncements"
@@ -1582,15 +1647,15 @@ async function syncSessionReceiptCode() {
         v-if="hasSelectedRows"
         class="pointer-events-none fixed inset-x-0 bottom-6 z-[130] flex justify-center px-4"
       >
-        <div class="pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-4 shadow-[0_0_0_1px_rgba(15,23,42,0.06),0_22px_60px_-18px_rgba(15,23,42,0.34)]">
+        <div class="pointer-events-auto flex w-full max-w-3xl flex-col gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-[0_0_0_1px_rgba(15,23,42,0.06),0_22px_60px_-18px_rgba(15,23,42,0.34)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p class="text-sm text-slate-600">
             已选 <span class="font-semibold text-slate-900">{{ selectedRows.length }}</span> 项
           </p>
-          <div class="flex items-center gap-3">
-            <button type="button" class="btn-secondary" @click="clearSelection">取消选择</button>
+          <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <button type="button" class="btn-secondary w-full sm:w-auto" @click="clearSelection">取消选择</button>
             <button
               type="button"
-              class="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+              class="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               :disabled="batchDownloadSubmitting"
               @click="downloadSelectedResources"
             >
