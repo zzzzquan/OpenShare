@@ -203,19 +203,18 @@ chmod +x start.sh
 
 默认情况下，服务会自动初始化数据库、存储目录、搜索索引，并在首次启动时创建超级管理员。
 
-# 致谢🫶
+## 致谢🫶
 
 如果这个项目对你有帮助，欢迎点一个 Star ！
 
 <div align="center">
-  <h2>感谢LinuxDo社区的支持！</h2>
-
-  <br />
-
-  <a href="https://linux.do" target="_blank" rel="noopener noreferrer">
-    <img
-      alt="LinuxDo Community"
-      src="https://img.shields.io/badge/COMMUNITY-LINUXDO-3E7FC1?style=for-the-badge&labelColor=5A5A5A&logoWidth=0"
-    />
-  </a>
+  <p><strong>感谢LinuxDo社区的支持！</strong></p>
+  <p>
+    <a href="https://linux.do" target="_blank" rel="noopener noreferrer">
+      <img
+        alt="LinuxDo Community"
+        src="https://img.shields.io/badge/COMMUNITY-LINUXDO-3E7FC1?style=for-the-badge&labelColor=5A5A5A&logoWidth=0"
+      />
+    </a>
+  </p>
 </div>
